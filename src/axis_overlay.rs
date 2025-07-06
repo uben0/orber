@@ -1,24 +1,37 @@
 use bevy::{prelude::*, render::view::RenderLayers};
-use std::marker::PhantomData;
 
 #[derive(GizmoConfigGroup, Default, Reflect)]
 struct AxisOverlayGizmoConfig;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AxisOverlayPlugin<T> {
-    layer: usize,
-    order: isize,
-    phantom: PhantomData<T>,
+    pub layer: usize,
+    pub order: isize,
+    pub length: f32,
+    pub thickness: f32,
+    pub target: T,
 }
 
-impl<T> AxisOverlayPlugin<T> {
-    pub fn new(layer: usize, order: isize) -> Self {
+impl<T> Default for AxisOverlayPlugin<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
         Self {
-            layer,
-            order,
-            phantom: PhantomData,
+            layer: 1,
+            order: 1,
+            length: 20.0,
+            thickness: 4.0,
+            target: default(),
         }
     }
+    // pub fn new(layer: usize, order: isize) -> Self {
+    //     Self {
+    //         layer,
+    //         order,
+    //         phantom: PhantomData,
+    //     }
+    // }
 }
 
 impl<T> Plugin for AxisOverlayPlugin<T>
@@ -26,14 +39,20 @@ where
     T: Component,
 {
     fn build(&self, app: &mut App) {
-        let layer = self.layer;
-        let order = self.order;
+        let _ = self.target;
+        let AxisOverlayPlugin {
+            layer,
+            order,
+            length,
+            thickness,
+            ..
+        } = *self;
 
         app.insert_gizmo_config(
             AxisOverlayGizmoConfig,
             GizmoConfig {
                 line: GizmoLineConfig {
-                    width: 4.0,
+                    width: thickness,
                     ..default()
                 },
                 render_layers: RenderLayers::layer(self.layer),
@@ -44,8 +63,7 @@ where
         app.add_systems(Startup, move |mut commands: Commands| {
             // axis overlay camera
             commands.spawn((
-                // TODO: remove looking_at
-                Transform::from_xyz(0.0, 0.0, 100.0),
+                Transform::from_xyz(0.0, 0.0, length),
                 Camera3d::default(),
                 Camera {
                     // renders in front of everything
@@ -61,15 +79,15 @@ where
 
         app.add_systems(
             Update,
-            |mut gizmos: Gizmos<AxisOverlayGizmoConfig>, transform: Single<&Transform, With<T>>| {
-                const SCALE: f32 = 20.0;
+            move |mut gizmos: Gizmos<AxisOverlayGizmoConfig>,
+                  transform: Single<&Transform, With<T>>| {
                 let orient = transform.rotation.inverse();
                 for (base, color) in [
                     (Vec3::X, Color::srgb(1.0, 0.0, 0.0)),
                     (Vec3::Y, Color::srgb(0.0, 1.0, 0.0)),
                     (Vec3::Z, Color::srgb(0.0, 0.0, 1.0)),
                 ] {
-                    gizmos.line(Vec3::ZERO, orient * base * SCALE, color);
+                    gizmos.line(Vec3::ZERO, orient * base * length, color);
                 }
             },
         );

@@ -24,14 +24,17 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             FramepacePlugin,
-            AxisOverlayPlugin::<Player>::new(1, 1),
+            AxisOverlayPlugin {
+                target: Player,
+                ..default()
+            },
         ))
         .add_systems(Startup, (setup, render.after(setup)))
         .add_systems(Update, control_player)
         .run();
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct Player;
 
 fn render(
