@@ -6,7 +6,7 @@ use crate::{
     axis_overlay::AxisOverlayPlugin,
     blocks::ChunkBlocks,
     chunk_meshing::chunk_build_mesh,
-    chunks::{ChunksIndex, assert_is_local},
+    chunks::{Chunk, ChunksIndex, assert_is_local},
     spacial::{Side, Sides},
 };
 
@@ -60,7 +60,11 @@ fn setup(
     let chunk_blocks = ChunkBlocks::new();
     let mut index = ChunksIndex::new();
     let entity = commands
-        .spawn((Transform::from_xyz(0.0, 0.0, 0.0), chunk_blocks))
+        .spawn((
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            Chunk { chunk: IVec3::ZERO },
+            chunk_blocks,
+        ))
         .id();
     index.index.insert(IVec3::ZERO, entity);
     commands.insert_resource(index);

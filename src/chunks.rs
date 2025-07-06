@@ -9,6 +9,11 @@ pub struct ChunksIndex {
     pub index: HashMap<IVec3, Entity>,
 }
 
+#[derive(Component)]
+pub struct Chunk {
+    pub chunk: IVec3,
+}
+
 impl ChunksIndex {
     pub fn new() -> Self {
         Self {
