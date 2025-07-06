@@ -89,12 +89,12 @@ impl Side {
     /// A quadruple of points forming a clockwise square
     pub fn quad(self) -> [[f32; 3]; 4] {
         let (swap, depth) = match self {
-            Side::XPos => (Swizzle3::XYZ, 1.0),
-            Side::XNeg => (Swizzle3::XZY, 0.0),
-            Side::YPos => (Swizzle3::YZX, 1.0),
-            Side::YNeg => (Swizzle3::YXZ, 0.0),
-            Side::ZPos => (Swizzle3::ZXY, 1.0),
-            Side::ZNeg => (Swizzle3::ZYX, 0.0),
+            Side::XPos => (Swizzle3::XYZ, 1.0), // shift 0, clockwise
+            Side::XNeg => (Swizzle3::XZY, 0.0), // shift 0, counter clockwise
+            Side::YPos => (Swizzle3::ZXY, 1.0), // shift 1, clockwise
+            Side::YNeg => (Swizzle3::YXZ, 0.0), // shift 1, counter clockwise
+            Side::ZPos => (Swizzle3::YZX, 1.0), // shift 2, clockwise
+            Side::ZNeg => (Swizzle3::ZYX, 0.0), // shift 2, counter clockwise
         };
         [
             swap * [depth, 0.0, 0.0],
