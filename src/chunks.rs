@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::{ecs::entity::Entity, platform::collections::HashMap};
 
 use crate::CHUNK_WIDTH;
+use crate::blocks::ChunkBlocks;
 
 #[derive(Resource)]
 pub struct ChunksIndex {
@@ -17,6 +18,15 @@ impl ChunksIndex {
     pub fn global_to_local(&self, global: IVec3) -> Option<(Entity, IVec3)> {
         let (chunk, local) = global_to_local(global);
         Some((*self.index.get(&chunk)?, local))
+    }
+
+    pub fn get_block<'a>(
+        &self,
+        blocks: impl FnOnce(Entity) -> Option<&'a ChunkBlocks>,
+        global: IVec3,
+    ) -> Option<bool> {
+        let (chunk, local) = self.global_to_local(global)?;
+        Some(blocks(chunk)?.get(local))
     }
 }
 

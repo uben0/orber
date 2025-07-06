@@ -18,20 +18,11 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
             &mut positions,
             &mut normals,
             &mut indices,
-            Sides {
-                x_pos: false,
-                x_neg: true,
-                y_pos: false,
-                y_neg: true,
-                z_pos: false,
-                z_neg: true,
-            },
-            // Sides::NORMAL.map(|v| {
-            //     let Some((entity, local)) = index.global_to_local(global + v) else {
-            //         return true;
-            //     };
-            //     !blocks.get(entity).unwrap().blocks.contains_key(&local)
-            // }),
+            Sides::NORMAL.map(|v| {
+                !index
+                    .get_block(|e| blocks.get(e).ok(), global + v)
+                    .unwrap_or(false)
+            }),
         );
     }
     Mesh::new(TriangleList, default())
