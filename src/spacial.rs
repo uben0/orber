@@ -1,5 +1,7 @@
 use std::ops::Index;
 
+use bevy::math::IVec3;
+
 use crate::swizzle::Swizzle3;
 
 #[derive(Debug, Clone, Copy)]
@@ -21,6 +23,21 @@ pub struct Sides<T> {
     pub z_neg: T,
 }
 
+impl<T> Index<Side> for [T; 6] {
+    type Output = T;
+
+    fn index(&self, index: Side) -> &Self::Output {
+        match index {
+            Side::XPos => self.index(0),
+            Side::XNeg => self.index(1),
+            Side::YPos => self.index(2),
+            Side::YNeg => self.index(3),
+            Side::ZPos => self.index(4),
+            Side::ZNeg => self.index(5),
+        }
+    }
+}
+
 impl<T> Index<Side> for Sides<T> {
     type Output = T;
 
@@ -34,6 +51,30 @@ impl<T> Index<Side> for Sides<T> {
             Side::ZNeg => &self.z_neg,
         }
     }
+}
+
+impl<T> Sides<T> {
+    pub fn map<U>(self, mut m: impl FnMut(T) -> U) -> Sides<U> {
+        Sides {
+            x_pos: m(self.x_pos),
+            x_neg: m(self.x_neg),
+            y_pos: m(self.y_pos),
+            y_neg: m(self.y_neg),
+            z_pos: m(self.z_pos),
+            z_neg: m(self.z_neg),
+        }
+    }
+}
+
+impl Sides<IVec3> {
+    pub const NORMAL: Self = Self {
+        x_pos: IVec3::X,
+        x_neg: IVec3::NEG_X,
+        y_pos: IVec3::Y,
+        y_neg: IVec3::NEG_Y,
+        z_pos: IVec3::Z,
+        z_neg: IVec3::NEG_Z,
+    };
 }
 
 impl Side {
