@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use bevy::render::mesh::Indices;
 use bevy::render::mesh::{Mesh, PrimitiveTopology::TriangleList};
 
-use crate::chunks::{Chunk, ChunksIndex, local_to_global};
-use crate::spacial::Sides;
-use crate::{blocks::ChunkBlocks, make_cube_mesh};
+use crate::blocks::ChunkBlocks;
+use crate::chunks::{Chunk, ChunksIndex, assert_is_local, local_to_global};
+use crate::spacial::{Side, Sides};
 
 pub fn chunk_meshing(
     index: Res<ChunksIndex>,
@@ -46,4 +46,32 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
         .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
         .with_inserted_indices(Indices::U32(indices))
+}
+
+fn make_cube_mesh(
+    local: IVec3,
+    positions: &mut Vec<[f32; 3]>,
+    normals: &mut Vec<[f32; 3]>,
+    indices: &mut Vec<u32>,
+    visible: Sides<bool>,
+) {
+    assert_is_local(local);
+    for side in Side::ALL {
+        if visible[side] {
+            let index = positions.len() as u32;
+            positions.extend(
+                side.quad()
+                    .map(|v| <[f32; 3]>::from(Vec3::from(v) + local.as_vec3())),
+            );
+            normals.extend([side.normal(); 4]);
+            indices.extend([
+                index + 0,
+                index + 1,
+                index + 2,
+                index + 2,
+                index + 3,
+                index + 0,
+            ]);
+        }
+    }
 }

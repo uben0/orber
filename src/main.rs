@@ -5,8 +5,7 @@ use std::f32::consts::PI;
 use crate::{
     axis_overlay::AxisOverlayPlugin,
     chunk_meshing::chunk_meshing,
-    chunks::{ChunksIndex, assert_is_local, chunk_indexer},
-    spacial::{Side, Sides},
+    chunks::{ChunksIndex, chunk_indexer},
 };
 
 mod axis_overlay;
@@ -111,32 +110,4 @@ fn control_player(
     let plane_rotation = Quat::from_euler(default(), yaw, 0.0, 0.0);
     player.translation += plane_rotation * dir * time.delta_secs() * PLAYER_SPEED;
     player.rotation = Quat::from_euler(default(), yaw, pitch, 0.0);
-}
-
-fn make_cube_mesh(
-    local: IVec3,
-    positions: &mut Vec<[f32; 3]>,
-    normals: &mut Vec<[f32; 3]>,
-    indices: &mut Vec<u32>,
-    visible: Sides<bool>,
-) {
-    assert_is_local(local);
-    for side in Side::ALL {
-        if visible[side] {
-            let index = positions.len() as u32;
-            positions.extend(
-                side.quad()
-                    .map(|v| <[f32; 3]>::from(Vec3::from(v) + local.as_vec3())),
-            );
-            normals.extend([side.normal(); 4]);
-            indices.extend([
-                index + 0,
-                index + 1,
-                index + 2,
-                index + 2,
-                index + 3,
-                index + 0,
-            ]);
-        }
-    }
 }
