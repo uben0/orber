@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = "0.16.1"
 bevy_framepace = "0.19.1"
+noisy_bevy = "0.10.1"
 
 [profile.dev]
 opt-level = 1

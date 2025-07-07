@@ -4,9 +4,8 @@ use std::f32::consts::PI;
 
 use crate::{
     axis_overlay::AxisOverlayPlugin,
-    blocks::ChunkBlocks,
     chunk_meshing::chunk_meshing,
-    chunks::{Chunk, ChunksIndex, assert_is_local, chunk_indexer},
+    chunks::{ChunksIndex, assert_is_local, chunk_indexer},
     spacial::{Side, Sides},
 };
 

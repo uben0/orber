@@ -66,7 +66,7 @@ pub fn chunk_indexer(mut commands: Commands, mut index: ResMut<ChunksIndex>) {
                     let global = local_to_global(chunk, IVec3::ZERO).as_vec3();
                     let transform = Transform::from_translation(global);
                     let entity = commands
-                        .spawn((Chunk { chunk }, transform, ChunkBlocks::new()))
+                        .spawn((Chunk { chunk }, transform, ChunkBlocks::new(chunk)))
                         .id();
                     index.index.insert(chunk, entity);
                 }
