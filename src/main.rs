@@ -72,7 +72,8 @@ fn control_player(
     mut player: Single<&mut Transform, With<Player>>,
     time: Res<Time>,
 ) {
-    const PLAYER_SPEED: f32 = 4.0;
+    const PLAYER_SPEED: f32 = 8.0;
+    const PLAYER_SPEED_BOOST: f32 = 24.0;
     const PLAYER_ROTATION: f32 = 0.2;
 
     let (mut yaw, mut pitch, _) = player.rotation.to_euler(default());
@@ -106,8 +107,13 @@ fn control_player(
         dir -= Vec3::X;
     }
 
+    let speed = match keys.pressed(KeyCode::KeyA) {
+        true => PLAYER_SPEED_BOOST,
+        false => PLAYER_SPEED,
+    };
+
     let dir = dir.normalize_or_zero();
     let plane_rotation = Quat::from_euler(default(), yaw, 0.0, 0.0);
-    player.translation += plane_rotation * dir * time.delta_secs() * PLAYER_SPEED;
+    player.translation += plane_rotation * dir * time.delta_secs() * speed;
     player.rotation = Quat::from_euler(default(), yaw, pitch, 0.0);
 }
