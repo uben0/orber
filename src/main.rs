@@ -5,8 +5,8 @@ use std::f32::consts::PI;
 use crate::{
     axis_overlay::AxisOverlayPlugin,
     blocks::ChunkBlocks,
-    chunk_meshing::chunk_build_mesh,
-    chunks::{Chunk, ChunksIndex, assert_is_local},
+    chunk_meshing::chunk_meshing,
+    chunks::{Chunk, ChunksIndex, assert_is_local, chunk_indexer},
     spacial::{Side, Sides},
 };
 
@@ -29,45 +29,20 @@ fn main() {
                 ..default()
             },
         ))
-        .add_systems(Startup, (setup, render.after(setup)))
-        .add_systems(Update, control_player)
+        .add_systems(Startup, setup)
+        .add_systems(Update, (control_player, chunk_meshing, chunk_indexer))
         .run();
 }
 
 #[derive(Component, Default)]
 struct Player;
 
-fn render(
-    mut commands: Commands,
-    chunks: Res<ChunksIndex>,
-    blocks: Query<&ChunkBlocks>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-) {
-    let mesh = chunk_build_mesh(&chunks, blocks, IVec3::ZERO);
-    let &entity = chunks.index.get(&IVec3::ZERO).unwrap();
-    commands.entity(entity).insert((
-        Mesh3d(meshes.add(mesh)),
-        MeshMaterial3d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
-    ));
-}
-
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let chunk_blocks = ChunkBlocks::new();
-    let mut index = ChunksIndex::new();
-    let entity = commands
-        .spawn((
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            Chunk { chunk: IVec3::ZERO },
-            chunk_blocks,
-        ))
-        .id();
-    index.index.insert(IVec3::ZERO, entity);
-    commands.insert_resource(index);
+    commands.insert_resource(ChunksIndex::new());
 
     commands.insert_resource(AmbientLight {
         brightness: 1000.0,

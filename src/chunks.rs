@@ -57,6 +57,24 @@ pub fn assert_is_local(local: IVec3) {
     assert!(local.z < CHUNK_WIDTH);
 }
 
+pub fn chunk_indexer(mut commands: Commands, mut index: ResMut<ChunksIndex>) {
+    for x in -2..=2 {
+        for y in -2..=2 {
+            for z in -2..=2 {
+                let chunk = IVec3 { x, y, z };
+                if !index.index.contains_key(&chunk) {
+                    let global = local_to_global(chunk, IVec3::ZERO).as_vec3();
+                    let transform = Transform::from_translation(global);
+                    let entity = commands
+                        .spawn((Chunk { chunk }, transform, ChunkBlocks::new()))
+                        .id();
+                    index.index.insert(chunk, entity);
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn test_global_local_transitions() {
     for x in -100..100 {

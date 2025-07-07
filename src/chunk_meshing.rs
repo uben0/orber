@@ -2,9 +2,26 @@ use bevy::prelude::*;
 use bevy::render::mesh::Indices;
 use bevy::render::mesh::{Mesh, PrimitiveTopology::TriangleList};
 
-use crate::chunks::{ChunksIndex, local_to_global};
+use crate::chunks::{Chunk, ChunksIndex, local_to_global};
 use crate::spacial::Sides;
 use crate::{blocks::ChunkBlocks, make_cube_mesh};
+
+pub fn chunk_meshing(
+    index: Res<ChunksIndex>,
+    blocks: Query<&ChunkBlocks>,
+    chunks: Query<(Entity, &Chunk), Without<Mesh3d>>,
+    mut commands: Commands,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    for (entity, chunk) in &chunks {
+        let mesh = chunk_build_mesh(&index, blocks, chunk.chunk);
+        commands.entity(entity).insert((
+            Mesh3d(meshes.add(mesh)),
+            MeshMaterial3d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
+        ));
+    }
+}
 
 pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk: IVec3) -> Mesh {
     let mut positions = Vec::new();
