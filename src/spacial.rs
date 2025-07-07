@@ -64,6 +64,18 @@ impl<T> Sides<T> {
             z_neg: m(self.z_neg),
         }
     }
+    pub fn all(&self, p: impl FnMut(&T) -> bool) -> bool {
+        [
+            &self.x_pos,
+            &self.x_neg,
+            &self.y_pos,
+            &self.y_neg,
+            &self.z_pos,
+            &self.z_neg,
+        ]
+        .into_iter()
+        .all(p)
+    }
 }
 
 impl Sides<IVec3> {

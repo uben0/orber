@@ -5,13 +5,14 @@ use std::f32::consts::PI;
 use crate::{
     axis_overlay::AxisOverlayPlugin,
     chunk_meshing::chunk_meshing,
-    chunks::{ChunksIndex, chunk_indexer},
+    chunks::{ChunksIndex, Loader, chunk_indexer, chunk_state_show},
 };
 
 mod axis_overlay;
 mod blocks;
 mod chunk_meshing;
 mod chunks;
+mod octahedron;
 mod spacial;
 mod swizzle;
 
@@ -28,7 +29,15 @@ fn main() {
             },
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (control_player, chunk_meshing, chunk_indexer))
+        .add_systems(
+            Update,
+            (
+                control_player,
+                chunk_meshing,
+                chunk_indexer,
+                chunk_state_show,
+            ),
+        )
         .run();
 }
 
@@ -52,6 +61,7 @@ fn setup(
     ));
     commands.spawn((
         Player,
+        Loader::new(40.0, 10.0),
         Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::splat(0.0), Vec3::Y),
         Camera3d::default(),
         Projection::Perspective(PerspectiveProjection {
