@@ -25,13 +25,6 @@ where
             target: default(),
         }
     }
-    // pub fn new(layer: usize, order: isize) -> Self {
-    //     Self {
-    //         layer,
-    //         order,
-    //         phantom: PhantomData,
-    //     }
-    // }
 }
 
 impl<T> Plugin for AxisOverlayPlugin<T>
@@ -61,13 +54,11 @@ where
         );
 
         app.add_systems(Startup, move |mut commands: Commands| {
-            // axis overlay camera
             commands.spawn((
                 Transform::from_xyz(0.0, 0.0, length),
                 Camera3d::default(),
                 Camera {
-                    // renders in front of everything
-                    order: order,
+                    order,
                     // do not clear background
                     clear_color: ClearColorConfig::None,
                     ..default()
