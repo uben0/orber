@@ -1,15 +1,14 @@
 use bevy::prelude::*;
-use bevy::render::mesh::Indices;
-use bevy::render::mesh::{Mesh, PrimitiveTopology::TriangleList};
+use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
-use crate::blocks::ChunkBlocks;
+use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
-use crate::spacial::{Side, Sides};
+use crate::spacial::{Side, Sides, SidesExt};
 
 pub fn chunk_meshing(
     index: Res<ChunksIndex>,
     blocks: Query<&ChunkBlocks>,
-    chunks: Query<(Entity, &Chunk), Without<Mesh3d>>,
+    chunks: Query<(Entity, &Chunk), (With<ChunkBlocks>, Without<Mesh3d>)>,
     loaders: Query<(&Transform, &Loader)>,
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -19,13 +18,9 @@ pub fn chunk_meshing(
         if loaders.iter().any(|(transform, &loader)| {
             loader.inside_zone(transform.translation, chunk, Loader::ZONE_MESH)
         }) {
-            if Sides::NORMAL.all(|&v| {
-                index
-                    .get(chunk.chunk + v)
-                    .map(|e| blocks.contains(e))
-                    .unwrap_or(false)
-            }) {
-                let mesh = chunk_build_mesh(&index, blocks, chunk.chunk);
+            let has_blocks = |n| index.get(n).map(|e| blocks.contains(e)).unwrap_or(false);
+            if chunk.neighbours().all(has_blocks) {
+                let mesh = chunk_build_mesh(&index, blocks, chunk);
                 commands.entity(entity).insert((
                     Mesh3d(meshes.add(mesh)),
                     MeshMaterial3d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
@@ -35,11 +30,11 @@ pub fn chunk_meshing(
     }
 }
 
-pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk: IVec3) -> Mesh {
+pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk: Chunk) -> Mesh {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut indices = Vec::new();
-    let entity = index.index[&chunk];
+    let entity = index.get(chunk).unwrap();
     for (&local, ()) in &blocks.get(entity).unwrap().blocks {
         let global = local_to_global(chunk, local);
         make_cube_mesh(
@@ -47,7 +42,7 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
             &mut positions,
             &mut normals,
             &mut indices,
-            Sides::NORMAL.map(|v| {
+            Sides::NORMAL.map(|v: IVec3| {
                 !index
                     .get_block(|e| blocks.get(e).ok(), global + v)
                     .unwrap_or(false)

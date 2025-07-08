@@ -4,12 +4,13 @@ use std::f32::consts::PI;
 
 use crate::{
     axis_overlay::AxisOverlayPlugin,
+    chunk_blocks::chunk_generation,
     chunk_meshing::chunk_meshing,
     chunks::{ChunksIndex, Loader, chunk_indexer, chunk_state_show},
 };
 
 mod axis_overlay;
-mod blocks;
+mod chunk_blocks;
 mod chunk_meshing;
 mod chunks;
 mod octahedron;
@@ -35,6 +36,7 @@ fn main() {
                 control_player,
                 chunk_meshing,
                 chunk_indexer,
+                chunk_generation,
                 chunk_state_show,
             ),
         )

@@ -3,12 +3,13 @@ use std::ops::RangeInclusive;
 use bevy::prelude::*;
 use bevy::{ecs::entity::Entity, platform::collections::HashMap};
 
-use crate::blocks::ChunkBlocks;
+use crate::chunk_blocks::ChunkBlocks;
+use crate::spacial::{Side, Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
 
 #[derive(Resource)]
 pub struct ChunksIndex {
-    pub index: HashMap<IVec3, Entity>,
+    index: HashMap<IVec3, Entity>,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -26,6 +27,25 @@ impl Chunk {
     pub fn center(self) -> Vec3 {
         (self.chunk.as_vec3() + 0.5) * CHUNK_WIDTH as f32
     }
+    pub fn neighbours(self) -> Sides<Self> {
+        Sides::NORMAL.map(|v| self + v)
+    }
+}
+
+impl From<IVec3> for Chunk {
+    fn from(chunk: IVec3) -> Self {
+        Self { chunk }
+    }
+}
+
+impl std::ops::Add<IVec3> for Chunk {
+    type Output = Chunk;
+
+    fn add(self, rhs: IVec3) -> Chunk {
+        Self {
+            chunk: self.chunk + rhs,
+        }
+    }
 }
 
 impl ChunksIndex {
@@ -36,7 +56,7 @@ impl ChunksIndex {
     }
     pub fn global_to_local(&self, global: IVec3) -> Option<(Entity, IVec3)> {
         let (chunk, local) = global_to_local(global);
-        Some((*self.index.get(&chunk)?, local))
+        Some((self.get(chunk)?, local))
     }
 
     pub fn get_block<'a>(
@@ -48,19 +68,19 @@ impl ChunksIndex {
         Some(blocks(chunk)?.get(local))
     }
 
-    pub fn get(&self, chunk: IVec3) -> Option<Entity> {
-        self.index.get(&chunk).copied()
+    pub fn get(&self, chunk: Chunk) -> Option<Entity> {
+        self.index.get(&chunk.chunk).copied()
     }
 }
 
-pub fn local_to_global(chunk: IVec3, local: IVec3) -> IVec3 {
+pub fn local_to_global(chunk: Chunk, local: IVec3) -> IVec3 {
     assert_is_local(local);
-    CHUNK_WIDTH * chunk + local
+    CHUNK_WIDTH * chunk.chunk + local
 }
 
-pub fn global_to_local(global: IVec3) -> (IVec3, IVec3) {
+pub fn global_to_local(global: IVec3) -> (Chunk, IVec3) {
     (
-        global.div_euclid(IVec3::splat(CHUNK_WIDTH)),
+        global.div_euclid(IVec3::splat(CHUNK_WIDTH)).into(),
         global.rem_euclid(IVec3::splat(CHUNK_WIDTH)),
     )
 }
@@ -108,13 +128,12 @@ pub fn chunk_indexer(
             for y in loader.index_range(y) {
                 for z in loader.index_range(z) {
                     let chunk = IVec3 { x, y, z };
-                    if !index.index.contains_key(&chunk) {
+                    let chunk = Chunk { chunk };
+                    if index.get(chunk).is_none() {
                         let global = local_to_global(chunk, IVec3::ZERO).as_vec3();
                         let transform = Transform::from_translation(global);
-                        let entity = commands
-                            .spawn((Chunk { chunk }, transform, ChunkBlocks::new(chunk)))
-                            .id();
-                        index.index.insert(chunk, entity);
+                        let entity = commands.spawn((chunk, transform)).id();
+                        index.index.insert(chunk.chunk, entity);
                     }
                 }
             }
@@ -143,8 +162,7 @@ impl Loader {
         Self::distance(loader, chunk.center(), zone) > self.radius + self.buffer
     }
     fn distance(lhs: Vec3, rhs: Vec3, zone: u32) -> f32 {
-        const ANTICIPATE: f32 = 1.0 / 16.0 + 1.0;
-        octahedron::distance(lhs, zone as f32 * ANTICIPATE * CHUNK_WIDTH as f32, rhs)
+        octahedron::distance(lhs, zone as f32 * CHUNK_WIDTH as f32, rhs)
     }
 }
 

@@ -1,19 +1,32 @@
-use bevy::{
-    ecs::component::Component,
-    math::{IVec3, Vec3Swizzles},
-    platform::collections::HashMap,
-};
+use bevy::{math::Vec3Swizzles, platform::collections::HashMap, prelude::*};
 use noisy_bevy::simplex_noise_2d;
 
-use crate::{CHUNK_WIDTH, chunks::local_to_global};
+use crate::{
+    CHUNK_WIDTH,
+    chunks::{Chunk, Loader, local_to_global},
+};
 
 #[derive(Component)]
 pub struct ChunkBlocks {
     pub blocks: HashMap<IVec3, ()>,
 }
 
+pub fn chunk_generation(
+    chunks: Query<(Entity, &Chunk), Without<ChunkBlocks>>,
+    loaders: Query<(&Transform, &Loader)>,
+    mut commands: Commands,
+) {
+    for (entity, &chunk) in &chunks {
+        if loaders.iter().any(|(transform, &loader)| {
+            loader.inside_zone(transform.translation, chunk, Loader::ZONE_BLOCKS)
+        }) {
+            commands.entity(entity).insert(ChunkBlocks::new(chunk));
+        }
+    }
+}
+
 impl ChunkBlocks {
-    pub fn new(chunk: IVec3) -> Self {
+    pub fn new(chunk: Chunk) -> Self {
         let mut blocks = HashMap::new();
         for x in 0..CHUNK_WIDTH {
             for z in 0..CHUNK_WIDTH {

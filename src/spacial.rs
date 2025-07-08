@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use bevy::math::IVec3;
+use bevy::math::{IVec3, Vec3};
 
 use crate::swizzle::Swizzle3;
 
@@ -64,22 +64,31 @@ impl<T> Sides<T> {
             z_neg: m(self.z_neg),
         }
     }
-    pub fn all(&self, p: impl FnMut(&T) -> bool) -> bool {
+    pub fn all(self, p: impl FnMut(T) -> bool) -> bool {
         [
-            &self.x_pos,
-            &self.x_neg,
-            &self.y_pos,
-            &self.y_neg,
-            &self.z_pos,
-            &self.z_neg,
+            self.x_pos, self.x_neg, self.y_pos, self.y_neg, self.z_pos, self.z_neg,
         ]
         .into_iter()
         .all(p)
     }
 }
 
-impl Sides<IVec3> {
-    pub const NORMAL: Self = Self {
+pub trait SidesExt<T> {
+    const NORMAL: Sides<T>;
+}
+
+impl SidesExt<Vec3> for Sides<Vec3> {
+    const NORMAL: Sides<Vec3> = Sides {
+        x_pos: Vec3::X,
+        x_neg: Vec3::NEG_X,
+        y_pos: Vec3::Y,
+        y_neg: Vec3::NEG_Y,
+        z_pos: Vec3::Z,
+        z_neg: Vec3::NEG_Z,
+    };
+}
+impl SidesExt<IVec3> for Sides<IVec3> {
+    const NORMAL: Sides<IVec3> = Sides {
         x_pos: IVec3::X,
         x_neg: IVec3::NEG_X,
         y_pos: IVec3::Y,
@@ -116,13 +125,6 @@ impl Side {
         ]
     }
     pub fn normal(self) -> [f32; 3] {
-        match self {
-            Side::XPos => [1.0, 0.0, 0.0],
-            Side::XNeg => [-1.0, 0.0, 0.0],
-            Side::YPos => [0.0, 1.0, 0.0],
-            Side::YNeg => [0.0, -1.0, 0.0],
-            Side::ZPos => [0.0, 0.0, 1.0],
-            Side::ZNeg => [0.0, 0.0, -1.0],
-        }
+        Sides::<Vec3>::NORMAL[self].into()
     }
 }
