@@ -1,8 +1,10 @@
 use crate::{
     axis_overlay::AxisOverlayPlugin,
-    chunk_blocks::chunk_generation,
+    chunk_blocks::{ChunkBlocks, chunk_generation},
     chunk_meshing::chunk_meshing,
     chunks::{ChunksIndex, Loader, chunk_indexer, chunk_state_show},
+    ray_travel::RayTraveler,
+    spacial::Side,
 };
 use bevy::{input::mouse::MouseMotion, prelude::*};
 use bevy_framepace::FramepacePlugin;
@@ -13,6 +15,7 @@ mod chunk_blocks;
 mod chunk_meshing;
 mod chunks;
 mod octahedron;
+mod ray_travel;
 mod spacial;
 mod swizzle;
 
@@ -37,6 +40,7 @@ fn main() {
                 chunk_indexer,
                 chunk_generation,
                 chunk_state_show,
+                pointed_block,
             ),
         )
         .run();
@@ -44,6 +48,12 @@ fn main() {
 
 #[derive(Component, Default)]
 struct Player;
+
+#[derive(Component)]
+struct PointedBlock {
+    global: IVec3,
+    side: Side,
+}
 
 fn setup(
     mut commands: Commands,
@@ -77,6 +87,32 @@ fn setup(
     ));
 }
 
+fn pointed_block(
+    player: Single<(Entity, &Transform, Option<&PointedBlock>), With<Player>>,
+    blocks: Query<&ChunkBlocks>,
+    index: Res<ChunksIndex>,
+    mut commands: Commands,
+    mut gizmos: Gizmos,
+) {
+    let (entity, transform, pointed) = player.into_inner();
+
+    for step in RayTraveler::new(
+        transform.translation,
+        transform.rotation * Dir3::NEG_Z,
+        16.0,
+    ) {
+        gizmos.cuboid(
+            Transform {
+                translation: step.voxel.as_vec3() + 0.5 * Vec3::ONE,
+                rotation: default(),
+                scale: Vec3::splat(1.0),
+            },
+            Color::srgb(1.0, 1.0, 1.0),
+        );
+    }
+    // commands.entity(entity).remove();
+}
+
 fn control_player(
     keys: Res<ButtonInput<KeyCode>>,
     mut mouse: EventReader<MouseMotion>,
@@ -87,6 +123,7 @@ fn control_player(
     const PLAYER_SPEED_BOOST: f32 = 24.0;
     const PLAYER_ROTATION: f32 = 0.2;
 
+    // TODO: fix behaviour at max and min pitch
     let (mut yaw, mut pitch, _) = player.rotation.to_euler(default());
     for MouseMotion {
         delta: Vec2 { x, y },

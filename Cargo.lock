@@ -1443,6 +1443,7 @@ dependencies = [
 name = "blocky"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "bevy",
  "bevy_framepace",
  "noisy_bevy",

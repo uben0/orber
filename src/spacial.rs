@@ -1,6 +1,6 @@
 use crate::swizzle::Swizzle3;
 use bevy::math::{IVec3, Vec3};
-use std::ops::Index;
+use std::ops::{AddAssign, Index};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Side {
@@ -10,6 +10,13 @@ pub enum Side {
     YNeg,
     ZPos,
     ZNeg,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Axis {
+    X,
+    Y,
+    Z,
 }
 
 pub struct Sides<T> {
@@ -105,6 +112,19 @@ impl Side {
         Self::ZPos,
         Self::ZNeg,
     ];
+    pub fn neighbour(self, of: IVec3) -> IVec3 {
+        Sides::<IVec3>::NORMAL[self] + of
+    }
+    pub const fn oposite(self) -> Self {
+        match self {
+            Side::XPos => Side::XNeg,
+            Side::XNeg => Side::XPos,
+            Side::YPos => Side::YNeg,
+            Side::YNeg => Side::YPos,
+            Side::ZPos => Side::ZNeg,
+            Side::ZNeg => Side::ZPos,
+        }
+    }
     /// A quadruple of points forming a clockwise square
     pub fn quad(self) -> [[f32; 3]; 4] {
         let (swap, depth) = match self {
@@ -124,5 +144,22 @@ impl Side {
     }
     pub fn normal(self) -> [f32; 3] {
         Sides::<Vec3>::NORMAL[self].into()
+    }
+}
+
+impl Axis {
+    pub const fn negative(self) -> Side {
+        match self {
+            Axis::X => Side::XNeg,
+            Axis::Y => Side::YNeg,
+            Axis::Z => Side::ZNeg,
+        }
+    }
+    pub const fn positive(self) -> Side {
+        match self {
+            Axis::X => Side::XPos,
+            Axis::Y => Side::YPos,
+            Axis::Z => Side::ZPos,
+        }
     }
 }
