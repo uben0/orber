@@ -2,7 +2,7 @@ use crate::swizzle::Swizzle3;
 use bevy::math::{IVec3, Vec3};
 use std::ops::{AddAssign, Index};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
     XPos,
     XNeg,

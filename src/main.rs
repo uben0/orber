@@ -3,6 +3,7 @@ use crate::{
     chunk_blocks::{ChunkBlocks, chunk_generation},
     chunk_meshing::chunk_meshing,
     chunks::{ChunksIndex, Loader, chunk_indexer, chunk_state_show},
+    pointed_block::{BlockPointer, BlockPointingPlugin},
     ray_travel::RayTraveler,
     spacial::Side,
 };
@@ -15,6 +16,7 @@ mod chunk_blocks;
 mod chunk_meshing;
 mod chunks;
 mod octahedron;
+mod pointed_block;
 mod ray_travel;
 mod spacial;
 mod swizzle;
@@ -30,6 +32,7 @@ fn main() {
                 target: Player,
                 ..default()
             },
+            BlockPointingPlugin,
         ))
         .add_systems(Startup, setup)
         .add_systems(
@@ -40,7 +43,6 @@ fn main() {
                 chunk_indexer,
                 chunk_generation,
                 chunk_state_show,
-                pointed_block,
             ),
         )
         .run();
@@ -48,12 +50,6 @@ fn main() {
 
 #[derive(Component, Default)]
 struct Player;
-
-#[derive(Component)]
-struct PointedBlock {
-    global: IVec3,
-    side: Side,
-}
 
 fn setup(
     mut commands: Commands,
@@ -72,6 +68,7 @@ fn setup(
     ));
     commands.spawn((
         Player,
+        BlockPointer::new(16.0),
         Loader::new(40.0, 10.0),
         Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::splat(0.0), Vec3::Y),
         Camera3d::default(),
@@ -85,32 +82,6 @@ fn setup(
         Mesh3d(meshes.add(Sphere::new(0.6))),
         MeshMaterial3d(materials.add(Color::srgb(0.0, 0.0, 1.0))),
     ));
-}
-
-fn pointed_block(
-    player: Single<(Entity, &Transform, Option<&PointedBlock>), With<Player>>,
-    blocks: Query<&ChunkBlocks>,
-    index: Res<ChunksIndex>,
-    mut commands: Commands,
-    mut gizmos: Gizmos,
-) {
-    let (entity, transform, pointed) = player.into_inner();
-
-    for step in RayTraveler::new(
-        transform.translation,
-        transform.rotation * Dir3::NEG_Z,
-        16.0,
-    ) {
-        gizmos.cuboid(
-            Transform {
-                translation: step.voxel.as_vec3() + 0.5 * Vec3::ONE,
-                rotation: default(),
-                scale: Vec3::splat(1.0),
-            },
-            Color::srgb(1.0, 1.0, 1.0),
-        );
-    }
-    // commands.entity(entity).remove();
 }
 
 fn control_player(
