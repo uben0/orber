@@ -1,11 +1,9 @@
-use std::ops::RangeInclusive;
-
+use crate::chunk_blocks::ChunkBlocks;
+use crate::spacial::{Sides, SidesExt};
+use crate::{CHUNK_WIDTH, octahedron};
 use bevy::prelude::*;
 use bevy::{ecs::entity::Entity, platform::collections::HashMap};
-
-use crate::chunk_blocks::ChunkBlocks;
-use crate::spacial::{Side, Sides, SidesExt};
-use crate::{CHUNK_WIDTH, octahedron};
+use std::ops::RangeInclusive;
 
 #[derive(Resource)]
 pub struct ChunksIndex {

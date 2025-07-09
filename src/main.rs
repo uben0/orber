@@ -1,13 +1,12 @@
-use bevy::{input::mouse::MouseMotion, prelude::*};
-use bevy_framepace::FramepacePlugin;
-use std::f32::consts::PI;
-
 use crate::{
     axis_overlay::AxisOverlayPlugin,
     chunk_blocks::chunk_generation,
     chunk_meshing::chunk_meshing,
     chunks::{ChunksIndex, Loader, chunk_indexer, chunk_state_show},
 };
+use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy_framepace::FramepacePlugin;
+use std::f32::consts::PI;
 
 mod axis_overlay;
 mod chunk_blocks;

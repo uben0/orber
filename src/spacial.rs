@@ -1,8 +1,6 @@
-use std::ops::Index;
-
-use bevy::math::{IVec3, Vec3};
-
 use crate::swizzle::Swizzle3;
+use bevy::math::{IVec3, Vec3};
+use std::ops::Index;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Side {

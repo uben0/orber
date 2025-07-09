@@ -1,9 +1,8 @@
-use bevy::prelude::*;
-use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
-
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
 use crate::spacial::{Side, Sides, SidesExt};
+use bevy::prelude::*;
+use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
 pub fn chunk_meshing(
     index: Res<ChunksIndex>,

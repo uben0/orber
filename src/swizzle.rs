@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 #[derive(Debug, Clone, Copy)]
 pub enum Swizzle3 {
     XYZ,
@@ -8,7 +10,7 @@ pub enum Swizzle3 {
     ZYX,
 }
 
-impl std::ops::Mul<[f32; 3]> for Swizzle3 {
+impl Mul<[f32; 3]> for Swizzle3 {
     type Output = [f32; 3];
 
     fn mul(self, [x, y, z]: [f32; 3]) -> Self::Output {
