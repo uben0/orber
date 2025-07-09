@@ -52,7 +52,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     commands.insert_resource(ChunksIndex::new());
-
+    commands.insert_resource(ClearColor(Color::srgb(0.7, 0.9, 1.0)));
     commands.insert_resource(AmbientLight {
         brightness: 1000.0,
         ..default()
