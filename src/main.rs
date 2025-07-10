@@ -1,13 +1,11 @@
 use crate::{
     axis_overlay::AxisOverlayPlugin,
-    chunk_blocks::{ChunkBlocks, chunk_generation},
+    chunk_blocks::chunk_generation,
     chunk_meshing::chunk_meshing,
     chunks::{ChunksIndex, Loader, chunk_indexer, chunk_state_show},
     pointed_block::{BlockPointer, BlockPointingPlugin},
-    ray_travel::RayTraveler,
-    spacial::Side,
 };
-use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
 use bevy_framepace::FramepacePlugin;
 use std::f32::consts::PI;
 
@@ -51,11 +49,10 @@ fn main() {
 #[derive(Component, Default)]
 struct Player;
 
-fn setup(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-) {
+fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
+    window.cursor_options.grab_mode = CursorGrabMode::Locked;
+    window.cursor_options.visible = false;
+
     commands.insert_resource(ChunksIndex::new());
     commands.insert_resource(ClearColor(Color::srgb(0.7, 0.9, 1.0)));
     commands.insert_resource(AmbientLight {
@@ -76,11 +73,6 @@ fn setup(
             fov: 85.0_f32.to_radians(),
             ..default()
         }),
-    ));
-    commands.spawn((
-        Transform::from_xyz(-2.0, 0.2, 0.1),
-        Mesh3d(meshes.add(Sphere::new(0.6))),
-        MeshMaterial3d(materials.add(Color::srgb(0.0, 0.0, 1.0))),
     ));
 }
 
