@@ -37,6 +37,22 @@ pub fn chunk_meshing(
     }
 }
 
+pub fn chunk_demeshing(
+    chunks: Query<(Entity, &Chunk), Or<(With<Mesh3d>, With<NeedsRemeshing>)>>,
+    loaders: Query<(&Transform, &Loader)>,
+    mut commands: Commands,
+) {
+    for (entity, &chunk) in chunks {
+        if loaders.iter().all(|(transform, &loader)| {
+            loader.outside_zone(transform.translation, chunk, Loader::ZONE_MESH)
+        }) {
+            commands
+                .entity(entity)
+                .remove::<(NeedsRemeshing, Mesh3d, MeshMaterial3d<StandardMaterial>)>();
+        }
+    }
+}
+
 pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk: Chunk) -> Mesh {
     let mut positions = Vec::new();
     let mut normals = Vec::new();

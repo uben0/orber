@@ -1,8 +1,8 @@
 use crate::{
     axis_overlay::AxisOverlayPlugin,
     chunk_blocks::chunk_generation,
-    chunk_meshing::chunk_meshing,
-    chunks::{ChunksIndex, Loader, Modify, chunk_indexer, chunk_state_show, chunks_setup},
+    chunk_meshing::{chunk_demeshing, chunk_meshing},
+    chunks::{Loader, Modify, chunk_indexer, chunk_state_show, chunks_setup},
     pointed_block::{BlockPointer, BlockPointingPlugin, Pointing},
 };
 use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
@@ -39,6 +39,7 @@ fn main() {
                 control_player,
                 player_acts,
                 chunk_meshing,
+                chunk_demeshing,
                 chunk_indexer,
                 chunk_generation,
                 chunk_state_show,
