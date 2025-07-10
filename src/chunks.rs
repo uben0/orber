@@ -21,6 +21,22 @@ pub struct Loader {
     buffer: f32,
 }
 
+#[derive(Event, Debug)]
+pub enum Modify {
+    Remove { local: IVec3 },
+    Place { local: IVec3, block: () },
+}
+
+pub fn chunks_setup(mut commands: Commands) {
+    commands.insert_resource(ChunksIndex::new());
+    commands.add_observer(observe_chunk_modify);
+}
+
+fn observe_chunk_modify(trigger: Trigger<Modify>) {
+    println!("triggered!");
+    println!("{:#?}", trigger.event());
+}
+
 impl Chunk {
     pub fn center(self) -> Vec3 {
         (self.chunk.as_vec3() + 0.5) * CHUNK_WIDTH as f32

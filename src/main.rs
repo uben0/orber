@@ -2,8 +2,8 @@ use crate::{
     axis_overlay::AxisOverlayPlugin,
     chunk_blocks::chunk_generation,
     chunk_meshing::chunk_meshing,
-    chunks::{ChunksIndex, Loader, chunk_indexer, chunk_state_show},
-    pointed_block::{BlockPointer, BlockPointingPlugin},
+    chunks::{ChunksIndex, Loader, Modify, chunk_indexer, chunk_state_show, chunks_setup},
+    pointed_block::{BlockPointer, BlockPointingPlugin, Pointing},
 };
 use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
 use bevy_framepace::FramepacePlugin;
@@ -32,11 +32,12 @@ fn main() {
             },
             BlockPointingPlugin,
         ))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, chunks_setup))
         .add_systems(
             Update,
             (
                 control_player,
+                player_acts,
                 chunk_meshing,
                 chunk_indexer,
                 chunk_generation,
@@ -53,7 +54,6 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
     window.cursor_options.grab_mode = CursorGrabMode::Locked;
     window.cursor_options.visible = false;
 
-    commands.insert_resource(ChunksIndex::new());
     commands.insert_resource(ClearColor(Color::srgb(0.7, 0.9, 1.0)));
     commands.insert_resource(AmbientLight {
         brightness: 1000.0,
@@ -74,6 +74,29 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             ..default()
         }),
     ));
+}
+
+fn player_acts(
+    mouse: Res<ButtonInput<MouseButton>>,
+    player: Single<&BlockPointer, With<Player>>,
+    index: Res<ChunksIndex>,
+    // blocks: Query<&mut ChunkBlocks>,
+    mut commands: Commands,
+) {
+    if let Some(Pointing { global, side }) = player.pointing {
+        if mouse.just_pressed(MouseButton::Left) {
+            if let Some((chunk, local)) = index.global_to_local(global) {
+                commands.entity(chunk).trigger(Modify::Remove { local });
+            }
+        }
+        if mouse.just_pressed(MouseButton::Right) {
+            if let Some((chunk, local)) = index.global_to_local(side.neighbour(global)) {
+                commands
+                    .entity(chunk)
+                    .trigger(Modify::Place { local, block: () });
+            }
+        }
+    }
 }
 
 fn control_player(
