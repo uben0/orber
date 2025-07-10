@@ -1,6 +1,6 @@
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunk_meshing::NeedsRemeshing;
-use crate::spacial::{Sides, SidesExt};
+use crate::spacial::{Side, Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
 use bevy::ecs::query::QueryEntityError;
 use bevy::prelude::*;
@@ -40,7 +40,6 @@ fn observe_chunk_modify(
     mut blocks: Query<&mut ChunkBlocks>,
     mut commands: Commands,
 ) {
-    // TODO: propagate mesh update to neighbour chunk when necesary
     match *trigger {
         Modify::Remove { global } => {
             let Some((chunk, _)) = index.global_to_local(global) else {
@@ -48,6 +47,18 @@ fn observe_chunk_modify(
             };
             index.set_block(|e| blocks.get_mut(e), global, None);
             commands.entity(chunk).insert(NeedsRemeshing);
+            for side in Side::ALL {
+                let global = side.neighbour(global);
+                let Some((neighbour, _)) = index.global_to_local(global) else {
+                    continue;
+                };
+                if neighbour == chunk {
+                    continue;
+                }
+                if let Some(true) = index.get_block(|e| blocks.get(e), global) {
+                    commands.entity(neighbour).insert(NeedsRemeshing);
+                }
+            }
         }
         Modify::Place { global, block } => {
             let Some((chunk, _)) = index.global_to_local(global) else {
@@ -55,6 +66,18 @@ fn observe_chunk_modify(
             };
             index.set_block(|e| blocks.get_mut(e), global, Some(block));
             commands.entity(chunk).insert(NeedsRemeshing);
+            for side in Side::ALL {
+                let global = side.neighbour(global);
+                let Some((neighbour, _)) = index.global_to_local(global) else {
+                    continue;
+                };
+                if neighbour == chunk {
+                    continue;
+                }
+                if let Some(true) = index.get_block(|e| blocks.get(e), global) {
+                    commands.entity(neighbour).insert(NeedsRemeshing);
+                }
+            }
         }
     }
 }
