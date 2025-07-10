@@ -4,10 +4,18 @@ use crate::spacial::{Side, Sides, SidesExt};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
+#[derive(Component)]
+pub struct NeedsRemeshing;
+
+type Candidate = (
+    With<ChunkBlocks>,
+    Or<(Without<Mesh3d>, With<NeedsRemeshing>)>,
+);
+
 pub fn chunk_meshing(
     index: Res<ChunksIndex>,
     blocks: Query<&ChunkBlocks>,
-    chunks: Query<(Entity, &Chunk), (With<ChunkBlocks>, Without<Mesh3d>)>,
+    chunks: Query<(Entity, &Chunk), Candidate>,
     loaders: Query<(&Transform, &Loader)>,
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -20,7 +28,7 @@ pub fn chunk_meshing(
             let has_blocks = |n| index.get(n).map(|e| blocks.contains(e)).unwrap_or(false);
             if chunk.neighbours().all(has_blocks) {
                 let mesh = chunk_build_mesh(&index, blocks, chunk);
-                commands.entity(entity).insert((
+                commands.entity(entity).remove::<NeedsRemeshing>().insert((
                     Mesh3d(meshes.add(mesh)),
                     MeshMaterial3d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
                 ));

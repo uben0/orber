@@ -79,22 +79,17 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
 fn player_acts(
     mouse: Res<ButtonInput<MouseButton>>,
     player: Single<&BlockPointer, With<Player>>,
-    index: Res<ChunksIndex>,
-    // blocks: Query<&mut ChunkBlocks>,
     mut commands: Commands,
 ) {
     if let Some(Pointing { global, side }) = player.pointing {
         if mouse.just_pressed(MouseButton::Left) {
-            if let Some((chunk, local)) = index.global_to_local(global) {
-                commands.entity(chunk).trigger(Modify::Remove { local });
-            }
+            commands.trigger(Modify::Remove { global });
         }
         if mouse.just_pressed(MouseButton::Right) {
-            if let Some((chunk, local)) = index.global_to_local(side.neighbour(global)) {
-                commands
-                    .entity(chunk)
-                    .trigger(Modify::Place { local, block: () });
-            }
+            commands.trigger(Modify::Place {
+                global: side.neighbour(global),
+                block: (),
+            });
         }
     }
 }

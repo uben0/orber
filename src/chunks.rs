@@ -1,4 +1,5 @@
 use crate::chunk_blocks::ChunkBlocks;
+use crate::chunk_meshing::NeedsRemeshing;
 use crate::spacial::{Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
 use bevy::prelude::*;
@@ -23,8 +24,8 @@ pub struct Loader {
 
 #[derive(Event, Debug)]
 pub enum Modify {
-    Remove { local: IVec3 },
-    Place { local: IVec3, block: () },
+    Remove { global: IVec3 },
+    Place { global: IVec3, block: () },
 }
 
 pub fn chunks_setup(mut commands: Commands) {
@@ -32,9 +33,28 @@ pub fn chunks_setup(mut commands: Commands) {
     commands.add_observer(observe_chunk_modify);
 }
 
-fn observe_chunk_modify(trigger: Trigger<Modify>) {
-    println!("triggered!");
-    println!("{:#?}", trigger.event());
+fn observe_chunk_modify(
+    trigger: Trigger<Modify>,
+    index: Res<ChunksIndex>,
+    mut blocks: Query<&mut ChunkBlocks>,
+    mut commands: Commands,
+) {
+    match *trigger {
+        Modify::Remove { global } => {
+            let Some((chunk, _)) = index.global_to_local(global) else {
+                return;
+            };
+            index.set_block(|e| blocks.get_mut(e).ok(), global, None);
+            commands.entity(chunk).insert(NeedsRemeshing);
+        }
+        Modify::Place { global, block } => {
+            let Some((chunk, _)) = index.global_to_local(global) else {
+                return;
+            };
+            index.set_block(|e| blocks.get_mut(e).ok(), global, Some(block));
+            commands.entity(chunk).insert(NeedsRemeshing);
+        }
+    }
 }
 
 impl Chunk {
@@ -62,6 +82,29 @@ impl std::ops::Add<IVec3> for Chunk {
     }
 }
 
+trait QueryFor<'a, T>: FnOnce(Entity) -> Option<&'a T>
+where
+    T: 'static,
+{
+}
+impl<'a, T, U> QueryFor<'a, T> for U
+where
+    U: FnOnce(Entity) -> Option<&'a T>,
+    T: 'static,
+{
+}
+trait QueryForMut<'a, T>: FnOnce(Entity) -> Option<Mut<'a, T>>
+where
+    T: 'static,
+{
+}
+impl<'a, T, U> QueryForMut<'a, T> for U
+where
+    U: FnOnce(Entity) -> Option<Mut<'a, T>>,
+    T: 'static,
+{
+}
+
 impl ChunksIndex {
     pub fn new() -> Self {
         Self {
@@ -80,6 +123,25 @@ impl ChunksIndex {
     ) -> Option<bool> {
         let (chunk, local) = self.global_to_local(global)?;
         Some(blocks(chunk)?.get(local))
+    }
+
+    pub fn set_block<'a>(
+        &self,
+        blocks: impl FnOnce(Entity) -> Option<Mut<'a, ChunkBlocks>>,
+        global: IVec3,
+        block: Option<()>,
+    ) {
+        let Some((chunk, local)) = self.global_to_local(global) else {
+            return;
+        };
+        let Some(mut blocks) = blocks(chunk) else {
+            return;
+        };
+        if let Some(block) = block {
+            blocks.blocks.insert(local, block);
+        } else {
+            blocks.blocks.remove(&local);
+        }
     }
 
     pub fn get(&self, chunk: Chunk) -> Option<Entity> {
