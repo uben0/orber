@@ -51,7 +51,7 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
             &mut indices,
             Sides::NORMAL.map(|v: IVec3| {
                 !index
-                    .get_block(|e| blocks.get(e).ok(), global + v)
+                    .get_block(|e| blocks.get(e), global + v)
                     .unwrap_or(false)
             }),
         );

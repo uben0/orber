@@ -2,6 +2,7 @@ use crate::chunk_blocks::ChunkBlocks;
 use crate::chunk_meshing::NeedsRemeshing;
 use crate::spacial::{Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
+use bevy::ecs::query::QueryEntityError;
 use bevy::prelude::*;
 use bevy::{ecs::entity::Entity, platform::collections::HashMap};
 use std::ops::RangeInclusive;
@@ -39,19 +40,20 @@ fn observe_chunk_modify(
     mut blocks: Query<&mut ChunkBlocks>,
     mut commands: Commands,
 ) {
+    // TODO: propagate mesh update to neighbour chunk when necesary
     match *trigger {
         Modify::Remove { global } => {
             let Some((chunk, _)) = index.global_to_local(global) else {
                 return;
             };
-            index.set_block(|e| blocks.get_mut(e).ok(), global, None);
+            index.set_block(|e| blocks.get_mut(e), global, None);
             commands.entity(chunk).insert(NeedsRemeshing);
         }
         Modify::Place { global, block } => {
             let Some((chunk, _)) = index.global_to_local(global) else {
                 return;
             };
-            index.set_block(|e| blocks.get_mut(e).ok(), global, Some(block));
+            index.set_block(|e| blocks.get_mut(e), global, Some(block));
             commands.entity(chunk).insert(NeedsRemeshing);
         }
     }
@@ -82,25 +84,25 @@ impl std::ops::Add<IVec3> for Chunk {
     }
 }
 
-trait QueryFor<'a, T>: FnOnce(Entity) -> Option<&'a T>
+pub trait QueryFor<'a, T>: FnOnce(Entity) -> Result<&'a T, QueryEntityError>
 where
     T: 'static,
 {
 }
 impl<'a, T, U> QueryFor<'a, T> for U
 where
-    U: FnOnce(Entity) -> Option<&'a T>,
+    U: FnOnce(Entity) -> Result<&'a T, QueryEntityError>,
     T: 'static,
 {
 }
-trait QueryForMut<'a, T>: FnOnce(Entity) -> Option<Mut<'a, T>>
+pub trait QueryForMut<'a, T>: FnOnce(Entity) -> Result<Mut<'a, T>, QueryEntityError>
 where
     T: 'static,
 {
 }
 impl<'a, T, U> QueryForMut<'a, T> for U
 where
-    U: FnOnce(Entity) -> Option<Mut<'a, T>>,
+    U: FnOnce(Entity) -> Result<Mut<'a, T>, QueryEntityError>,
     T: 'static,
 {
 }
@@ -118,23 +120,23 @@ impl ChunksIndex {
 
     pub fn get_block<'a>(
         &self,
-        blocks: impl FnOnce(Entity) -> Option<&'a ChunkBlocks>,
+        blocks: impl QueryFor<'a, ChunkBlocks>,
         global: IVec3,
     ) -> Option<bool> {
         let (chunk, local) = self.global_to_local(global)?;
-        Some(blocks(chunk)?.get(local))
+        Some(blocks(chunk).ok()?.get(local))
     }
 
     pub fn set_block<'a>(
         &self,
-        blocks: impl FnOnce(Entity) -> Option<Mut<'a, ChunkBlocks>>,
+        blocks: impl QueryForMut<'a, ChunkBlocks>,
         global: IVec3,
         block: Option<()>,
     ) {
         let Some((chunk, local)) = self.global_to_local(global) else {
             return;
         };
-        let Some(mut blocks) = blocks(chunk) else {
+        let Some(mut blocks) = blocks(chunk).ok() else {
             return;
         };
         if let Some(block) = block {

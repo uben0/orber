@@ -61,7 +61,7 @@ fn pointed_block(
             transform.rotation * Dir3::NEG_Z,
             pointer.range,
         )
-        .find(|step| index.get_block(|e| blocks.get(e).ok(), step.voxel) == Some(true))
+        .find(|step| index.get_block(|e| blocks.get(e), step.voxel) == Some(true))
         .map(|found| Pointing {
             global: found.voxel,
             side: found.side,
