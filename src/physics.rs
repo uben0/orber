@@ -29,7 +29,7 @@ pub struct Collider {
     pub anchor: Vec3,
 }
 
-#[derive(Component)]
+#[derive(Component, Debug, Clone, Copy, Default)]
 pub struct Velocity {
     pub linear: Vec3,
 }

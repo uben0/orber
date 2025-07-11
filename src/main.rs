@@ -6,7 +6,11 @@ use crate::{
     physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity},
     pointed_block::{BlockPointer, BlockPointingPlugin, Pointing},
 };
-use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
+use bevy::{
+    input::{common_conditions::input_just_pressed, mouse::MouseMotion},
+    prelude::*,
+    window::CursorGrabMode,
+};
 use bevy_framepace::FramepacePlugin;
 use std::f32::consts::PI;
 
@@ -51,6 +55,7 @@ fn main() {
                 chunk_indexer,
                 chunk_generation,
                 chunk_state_show,
+                toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
             ),
         )
         .run();
@@ -75,19 +80,12 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
     commands.spawn((
         Player,
         BlockPointer::new(16.0),
-        Velocity {
-            linear: Vec3 {
-                x: 1.0,
-                y: -1.0,
-                z: 0.0,
-            },
-        },
         Collider {
-            size: Vec3::splat(1.0),
-            anchor: Vec3::ONE * 0.5,
+            size: vec3(0.8, 1.9, 0.8),
+            anchor: vec3(0.4, 1.7, 0.4),
         },
         Loader::new(40.0, 10.0),
-        Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::splat(0.0), Vec3::Y),
+        Transform::from_xyz(5.0, 8.0, 5.0),
         Camera3d::default(),
         Projection::Perspective(PerspectiveProjection {
             fov: 85.0_f32.to_radians(),
@@ -111,6 +109,15 @@ fn player_acts(
                 block: (),
             });
         }
+    }
+}
+
+fn toggle_flying(player: Single<(Entity, Has<Velocity>), With<Player>>, mut commands: Commands) {
+    let (entity, has_physics) = player.into_inner();
+    if has_physics {
+        commands.entity(entity).remove::<Velocity>();
+    } else {
+        commands.entity(entity).insert(Velocity::default());
     }
 }
 
