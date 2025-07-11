@@ -76,25 +76,25 @@ fn apply_velocity(
             let length = shift.length();
             for step in RayTraveler::new(corner_active, dir, length) {
                 // to avoid code duplication, each symetric situation through dimension permutation is made identic by a reversible swizzle
-                let dim = step.side.axis();
+                let axis = step.side.axis();
 
-                let (_, [plane_u, plane_v]) = (step.position - corner_select).split(dim);
-                let (_, [size_u, size_v]) = cl.size.split(dim);
+                let (_, [plane_u, plane_v]) = (step.position - corner_select).split(axis);
+                let (_, [size_u, size_v]) = cl.size.split(axis);
 
                 // on the UV plane, we select all voxels covered by the side of the collider
                 for u in plane_u.floor() as i32..=(plane_u + size_u).floor() as i32 {
                     for v in plane_v.floor() as i32..=(plane_v + size_v).floor() as i32 {
                         // we find the global coordinate of each voxel
-                        let selected = IVec3::compose(dim, step.voxel[dim], [u, v]);
+                        let selected = IVec3::compose(axis, step.voxel[axis], [u, v]);
 
                         // if a block is present, a collision occur
                         if index.get_block(|e| blocks.get(e), selected) == Some(true) {
                             // we correct the vector component to stop at the collision
-                            shift[dim] *= step.time / length;
+                            shift[axis] *= step.time / length;
                             // we stop slightly before the collision
-                            shift[dim] -= dir[dim].signum() * 1e-4;
+                            shift[axis] -= dir[axis].signum() * 1e-4;
                             // the collision absorbs all kinetic energy
-                            vl.linear[dim] = 0.0;
+                            vl.linear[axis] = 0.0;
 
                             if step.side == Side::YPos {
                                 grounded = true;
