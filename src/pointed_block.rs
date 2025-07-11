@@ -5,7 +5,6 @@ use bevy::prelude::*;
 
 pub struct BlockPointingPlugin;
 
-// TODO: seperate Pointing as a component
 #[derive(Component)]
 pub struct BlockPointer {
     pub range: f32,

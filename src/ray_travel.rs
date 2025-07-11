@@ -35,15 +35,14 @@ impl RayTraveler {
             ]
             .into_iter()
             .filter_map(|(origin, ray, axis)| match ray.partial_cmp(&0.0)? {
+                Ordering::Equal => None,
                 Ordering::Less => Some(AxisTraveler {
-                    // TODO: make symetric
-                    next: ((origin + 0.0) - origin.floor()) / ray.abs(),
+                    next: ((origin + 0.0).floor() - origin) / ray,
                     step: 1.0 / ray.abs(),
                     dir: axis.negative(),
                 }),
-                Ordering::Equal => None,
                 Ordering::Greater => Some(AxisTraveler {
-                    next: ((origin + 1.0).floor() - origin) / ray.abs(),
+                    next: ((origin + 1.0).floor() - origin) / ray,
                     step: 1.0 / ray.abs(),
                     dir: axis.positive(),
                 }),
@@ -62,21 +61,16 @@ impl Iterator for RayTraveler {
     type Item = Step;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO: check is redoundant
-        if self.time_current > self.time_limit {
-            return None;
-        }
         let axis_traveler = self
             .axis_travelers
             .iter_mut()
-            .min_by(|lhs, rhs| lhs.next.partial_cmp(&rhs.next).unwrap())?;
-        self.time_current = axis_traveler.next;
-        if self.time_current > self.time_limit {
-            return None;
-        }
+            .min_by(|lhs, rhs| f32::total_cmp(&lhs.next, &rhs.next))
+            .filter(|a| a.next <= self.time_limit)?;
 
+        self.time_current = axis_traveler.next;
         axis_traveler.next += axis_traveler.step;
         self.voxel_current = axis_traveler.dir.neighbour(self.voxel_current);
+
         Some(Step {
             side: axis_traveler.dir.oposite(),
             voxel: self.voxel_current,
