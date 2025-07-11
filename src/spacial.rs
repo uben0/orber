@@ -1,6 +1,6 @@
 use crate::swizzle::Swizzle3;
 use bevy::math::{IVec3, Vec3};
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -145,6 +145,13 @@ impl Side {
     pub fn normal(self) -> [f32; 3] {
         Sides::<Vec3>::NORMAL[self].into()
     }
+    pub fn axis(self) -> Axis {
+        match self {
+            Side::XPos | Side::XNeg => Axis::X,
+            Side::YPos | Side::YNeg => Axis::Y,
+            Side::ZPos | Side::ZNeg => Axis::Z,
+        }
+    }
 }
 
 impl Axis {
@@ -160,6 +167,91 @@ impl Axis {
             Axis::X => Side::XPos,
             Axis::Y => Side::YPos,
             Axis::Z => Side::ZPos,
+        }
+    }
+}
+
+pub trait AxisSplit {
+    type Scalar;
+    fn split(self, axis: Axis) -> (Self::Scalar, [Self::Scalar; 2]);
+    fn compose(axis: Axis, it: Self::Scalar, uv: [Self::Scalar; 2]) -> Self;
+}
+
+impl AxisSplit for Vec3 {
+    type Scalar = f32;
+    fn split(self, axis: Axis) -> (f32, [f32; 2]) {
+        match axis {
+            Axis::X => (self.x, [self.y, self.z]),
+            Axis::Y => (self.y, [self.x, self.z]),
+            Axis::Z => (self.z, [self.x, self.y]),
+        }
+    }
+
+    fn compose(axis: Axis, it: Self::Scalar, [u, v]: [Self::Scalar; 2]) -> Self {
+        match axis {
+            Axis::X => Self { x: it, y: u, z: v },
+            Axis::Y => Self { x: u, y: it, z: v },
+            Axis::Z => Self { x: u, y: v, z: it },
+        }
+    }
+}
+
+impl AxisSplit for IVec3 {
+    type Scalar = i32;
+    fn split(self, axis: Axis) -> (Self::Scalar, [Self::Scalar; 2]) {
+        match axis {
+            Axis::X => (self.x, [self.y, self.z]),
+            Axis::Y => (self.y, [self.x, self.z]),
+            Axis::Z => (self.z, [self.x, self.y]),
+        }
+    }
+
+    fn compose(axis: Axis, it: Self::Scalar, [u, v]: [Self::Scalar; 2]) -> Self {
+        match axis {
+            Axis::X => Self { x: it, y: u, z: v },
+            Axis::Y => Self { x: u, y: it, z: v },
+            Axis::Z => Self { x: u, y: v, z: it },
+        }
+    }
+}
+
+impl Index<Axis> for IVec3 {
+    type Output = i32;
+
+    fn index(&self, index: Axis) -> &Self::Output {
+        match index {
+            Axis::X => self.index(0),
+            Axis::Y => self.index(1),
+            Axis::Z => self.index(2),
+        }
+    }
+}
+impl Index<Axis> for Vec3 {
+    type Output = f32;
+
+    fn index(&self, index: Axis) -> &Self::Output {
+        match index {
+            Axis::X => self.index(0),
+            Axis::Y => self.index(1),
+            Axis::Z => self.index(2),
+        }
+    }
+}
+impl IndexMut<Axis> for IVec3 {
+    fn index_mut(&mut self, index: Axis) -> &mut Self::Output {
+        match index {
+            Axis::X => self.index_mut(0),
+            Axis::Y => self.index_mut(1),
+            Axis::Z => self.index_mut(2),
+        }
+    }
+}
+impl IndexMut<Axis> for Vec3 {
+    fn index_mut(&mut self, index: Axis) -> &mut Self::Output {
+        match index {
+            Axis::X => self.index_mut(0),
+            Axis::Y => self.index_mut(1),
+            Axis::Z => self.index_mut(2),
         }
     }
 }

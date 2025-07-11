@@ -3,6 +3,7 @@ use crate::{
     chunk_blocks::chunk_generation,
     chunk_meshing::{chunk_demeshing, chunk_meshing},
     chunks::{Loader, Modify, chunk_indexer, chunk_state_show, chunks_setup},
+    physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity},
     pointed_block::{BlockPointer, BlockPointingPlugin, Pointing},
 };
 use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
@@ -14,6 +15,7 @@ mod chunk_blocks;
 mod chunk_meshing;
 mod chunks;
 mod octahedron;
+mod physics;
 mod pointed_block;
 mod ray_travel;
 mod spacial;
@@ -31,12 +33,18 @@ fn main() {
                 ..default()
             },
             BlockPointingPlugin,
+            PhysicsPlugin,
         ))
         .add_systems(Startup, (setup, chunks_setup))
         .add_systems(
             Update,
             (
-                control_player,
+                (
+                    control_player_rotation,
+                    control_player_physics,
+                    control_player_flying,
+                )
+                    .before(ApplyPhysics),
                 player_acts,
                 chunk_meshing,
                 chunk_demeshing,
@@ -67,6 +75,17 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
     commands.spawn((
         Player,
         BlockPointer::new(16.0),
+        Velocity {
+            linear: Vec3 {
+                x: 1.0,
+                y: -1.0,
+                z: 0.0,
+            },
+        },
+        Collider {
+            size: Vec3::splat(1.0),
+            anchor: Vec3::ONE * 0.5,
+        },
         Loader::new(40.0, 10.0),
         Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::splat(0.0), Vec3::Y),
         Camera3d::default(),
@@ -95,16 +114,12 @@ fn player_acts(
     }
 }
 
-fn control_player(
-    keys: Res<ButtonInput<KeyCode>>,
+fn control_player_rotation(
     mut mouse: EventReader<MouseMotion>,
     mut player: Single<&mut Transform, With<Player>>,
     time: Res<Time>,
 ) {
-    const PLAYER_SPEED: f32 = 8.0;
-    const PLAYER_SPEED_BOOST: f32 = 24.0;
     const PLAYER_ROTATION: f32 = 0.2;
-
     let (mut yaw, mut pitch, _) = player.rotation.to_euler(default());
     for MouseMotion {
         delta: Vec2 { x, y },
@@ -115,6 +130,52 @@ fn control_player(
     }
     yaw = yaw.rem_euclid(2.0 * PI);
     pitch = pitch.clamp(-PI / 2.0, PI / 2.0);
+    player.rotation = Quat::from_euler(default(), yaw, pitch, 0.0);
+}
+
+fn control_player_physics(
+    keys: Res<ButtonInput<KeyCode>>,
+    player: Single<(&Transform, &mut Velocity, Has<Grounded>), With<Player>>,
+    time: Res<Time>,
+) {
+    let (transform, mut velocity, grounded) = player.into_inner();
+    if keys.pressed(KeyCode::Space) && grounded {
+        velocity.linear.y = 12.0;
+    }
+
+    let mut dir = Vec3::ZERO;
+    if keys.pressed(KeyCode::KeyE) {
+        dir -= Vec3::Z;
+    }
+    if keys.pressed(KeyCode::KeyD) {
+        dir += Vec3::Z;
+    }
+    if keys.pressed(KeyCode::KeyF) {
+        dir += Vec3::X;
+    }
+    if keys.pressed(KeyCode::KeyS) {
+        dir -= Vec3::X;
+    }
+    let dir = dir.normalize_or_zero();
+
+    let force = match (grounded, keys.pressed(KeyCode::KeyA)) {
+        (true, true) => 100.0,
+        (true, false) => 70.0,
+        (false, _) => 40.0,
+    };
+
+    let (yaw, _, _) = transform.rotation.to_euler(default());
+    let plane_rotation = Quat::from_euler(default(), yaw, 0.0, 0.0);
+    velocity.linear += plane_rotation * force * time.delta_secs() * dir;
+}
+
+fn control_player_flying(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut player: Single<&mut Transform, (With<Player>, Without<Velocity>)>,
+    time: Res<Time>,
+) {
+    const PLAYER_SPEED: f32 = 8.0;
+    const PLAYER_SPEED_BOOST: f32 = 24.0;
 
     let mut dir = Vec3::ZERO;
     if keys.pressed(KeyCode::Space) {
@@ -135,14 +196,14 @@ fn control_player(
     if keys.pressed(KeyCode::KeyS) {
         dir -= Vec3::X;
     }
+    let dir = dir.normalize_or_zero();
 
     let speed = match keys.pressed(KeyCode::KeyA) {
         true => PLAYER_SPEED_BOOST,
         false => PLAYER_SPEED,
     };
 
-    let dir = dir.normalize_or_zero();
+    let (yaw, _, _) = player.rotation.to_euler(default());
     let plane_rotation = Quat::from_euler(default(), yaw, 0.0, 0.0);
     player.translation += plane_rotation * dir * time.delta_secs() * speed;
-    player.rotation = Quat::from_euler(default(), yaw, pitch, 0.0);
 }
