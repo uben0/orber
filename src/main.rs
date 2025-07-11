@@ -105,7 +105,6 @@ fn control_player(
     const PLAYER_SPEED_BOOST: f32 = 24.0;
     const PLAYER_ROTATION: f32 = 0.2;
 
-    // TODO: fix behaviour at max and min pitch
     let (mut yaw, mut pitch, _) = player.rotation.to_euler(default());
     for MouseMotion {
         delta: Vec2 { x, y },
@@ -115,7 +114,7 @@ fn control_player(
         pitch -= y * time.delta_secs() * PLAYER_ROTATION;
     }
     yaw = yaw.rem_euclid(2.0 * PI);
-    pitch = pitch.clamp(-PI, PI);
+    pitch = pitch.clamp(-PI / 2.0, PI / 2.0);
 
     let mut dir = Vec3::ZERO;
     if keys.pressed(KeyCode::Space) {
