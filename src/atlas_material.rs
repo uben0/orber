@@ -1,6 +1,8 @@
+use std::path::Path;
+
 use bevy::{
     asset::RenderAssetUsages,
-    image::{CompressedImageFormats, ImageSampler},
+    image::{CompressedImageFormats, ImageSampler, ImageType},
     pbr::{MaterialPipeline, MaterialPipelineKey},
     prelude::*,
     render::{
@@ -42,5 +44,25 @@ impl Material for AtlasMaterial {
         ])?;
         descriptor.vertex.buffers = Vec::from([vertex_layout]);
         Ok(())
+    }
+}
+
+impl AtlasMaterial {
+    pub fn new(atlas_path: impl AsRef<Path>, tile_width: u32, images: &mut Assets<Image>) -> Self {
+        let bytes = std::fs::read(atlas_path).unwrap();
+        let is_srgb = true;
+        let mut textures = Image::from_buffer(
+            &bytes,
+            ImageType::Format(ImageFormat::Png),
+            CompressedImageFormats::NONE,
+            is_srgb,
+            ImageSampler::nearest(),
+            RenderAssetUsages::default(),
+        )
+        .unwrap();
+        textures.reinterpret_stacked_2d_as_array(textures.height() / tile_width);
+        Self {
+            texture: images.add(textures),
+        }
     }
 }

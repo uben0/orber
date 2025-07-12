@@ -26,24 +26,12 @@ pub fn chunks_mesh_setup(
     mut materials: ResMut<Assets<AtlasMaterial>>,
 ) {
     commands.insert_resource(MeshAssets {
-        material: materials.add(AtlasMaterial {
-            texture: images.add(load_texture_atlas()),
-        }),
+        material: materials.add(AtlasMaterial::new(
+            "assets/textures/blocks.png",
+            16,
+            images.as_mut(),
+        )),
     });
-}
-fn load_texture_atlas() -> Image {
-    let bytes = std::fs::read("assets/textures/blocks.png").unwrap();
-    let mut textures = Image::from_buffer(
-        &bytes,
-        bevy::image::ImageType::Format(ImageFormat::Png),
-        CompressedImageFormats::NONE,
-        true,
-        ImageSampler::nearest(),
-        RenderAssetUsages::default(),
-    )
-    .unwrap();
-    textures.reinterpret_stacked_2d_as_array(textures.height() / 16);
-    textures
 }
 
 pub fn chunk_meshing(
