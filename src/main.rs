@@ -25,7 +25,6 @@ mod physics;
 mod pointed_block;
 mod ray_travel;
 mod spacial;
-mod swizzle;
 
 const CHUNK_WIDTH: i32 = 32;
 

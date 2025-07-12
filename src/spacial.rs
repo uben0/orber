@@ -1,6 +1,5 @@
-use crate::swizzle::Swizzle3;
 use bevy::math::{IVec3, Vec3};
-use std::ops::{Index, IndexMut};
+use std::ops::{Div, Index, IndexMut, Mul};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -27,6 +26,45 @@ pub struct Sides<T> {
     pub z_pos: T,
     pub z_neg: T,
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum AxisSwap {
+    XYZ,
+    XZY,
+    YXZ,
+    YZX,
+    ZXY,
+    ZYX,
+}
+
+impl AxisSwap {
+    pub const fn inverse(self) -> Self {
+        match self {
+            AxisSwap::XYZ => AxisSwap::XYZ,
+            AxisSwap::XZY => AxisSwap::XZY,
+            AxisSwap::YXZ => AxisSwap::YXZ,
+            AxisSwap::YZX => AxisSwap::ZXY,
+            AxisSwap::ZXY => AxisSwap::YZX,
+            AxisSwap::ZYX => AxisSwap::ZYX,
+        }
+    }
+}
+impl Mul<AxisSwap> for [f32; 3] {
+    type Output = Self;
+
+    fn mul(self, swap: AxisSwap) -> Self::Output {
+        let [x, y, z] = self;
+        match swap {
+            AxisSwap::XYZ => [x, y, z],
+            AxisSwap::XZY => [x, z, y],
+            AxisSwap::YXZ => [y, x, z],
+            AxisSwap::YZX => [y, z, x],
+            AxisSwap::ZXY => [z, x, y],
+            AxisSwap::ZYX => [z, y, x],
+        }
+    }
+}
+// impl Div<AxisS
 
 impl<T> Index<Side> for [T; 6] {
     type Output = T;
@@ -128,19 +166,19 @@ impl Side {
     /// A quadruple of points forming a clockwise square
     pub fn quad(self) -> [Vec3; 4] {
         let (swap, depth) = match self {
-            Side::XPos => (Swizzle3::XYZ, 1.0), // shift 0, clockwise
-            Side::XNeg => (Swizzle3::XZY, 0.0), // shift 0, counter clockwise
-            Side::YPos => (Swizzle3::ZXY, 1.0), // shift 1, clockwise
-            Side::YNeg => (Swizzle3::YXZ, 0.0), // shift 1, counter clockwise
-            Side::ZPos => (Swizzle3::YZX, 1.0), // shift 2, clockwise
-            Side::ZNeg => (Swizzle3::ZYX, 0.0), // shift 2, counter clockwise
+            Side::XPos => (AxisSwap::XYZ, 1.0), // shift 0, clockwise
+            Side::XNeg => (AxisSwap::XZY, 0.0), // shift 0, counter clockwise
+            Side::YPos => (AxisSwap::ZXY, 1.0), // shift 1, clockwise
+            Side::YNeg => (AxisSwap::YXZ, 0.0), // shift 1, counter clockwise
+            Side::ZPos => (AxisSwap::YZX, 1.0), // shift 2, clockwise
+            Side::ZNeg => (AxisSwap::ZYX, 0.0), // shift 2, counter clockwise
         };
         // TODO: replace with compose
         [
-            swap * [depth, 0.0, 0.0],
-            swap * [depth, 1.0, 0.0],
-            swap * [depth, 1.0, 1.0],
-            swap * [depth, 0.0, 1.0],
+            [depth, 0.0, 0.0] * swap,
+            [depth, 1.0, 0.0] * swap,
+            [depth, 1.0, 1.0] * swap,
+            [depth, 0.0, 1.0] * swap,
         ]
         .map(Vec3::from)
     }
