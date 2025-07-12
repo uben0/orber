@@ -1,24 +1,59 @@
+use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
 use crate::spacial::{Side, Sides, SidesExt};
+use bevy::asset::RenderAssetUsages;
+use bevy::image::{CompressedImageFormats, ImageSampler};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
 #[derive(Component)]
 pub struct NeedsRemeshing;
 
+#[derive(Resource)]
+pub struct MeshAssets {
+    material: Handle<AtlasMaterial>,
+}
+
 type Candidate = (
     With<ChunkBlocks>,
     Or<(Without<Mesh3d>, With<NeedsRemeshing>)>,
 );
+
+pub fn chunks_mesh_setup(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<AtlasMaterial>>,
+) {
+    commands.insert_resource(MeshAssets {
+        material: materials.add(AtlasMaterial {
+            texture: images.add(load_texture_atlas()),
+        }),
+    });
+}
+fn load_texture_atlas() -> Image {
+    let bytes = std::fs::read("assets/textures/blocks.png").unwrap();
+    let mut textures = Image::from_buffer(
+        &bytes,
+        bevy::image::ImageType::Format(ImageFormat::Png),
+        CompressedImageFormats::NONE,
+        true,
+        ImageSampler::nearest(),
+        RenderAssetUsages::default(),
+    )
+    .unwrap();
+    textures.reinterpret_stacked_2d_as_array(textures.height() / 16);
+    textures
+}
 
 pub fn chunk_meshing(
     index: Res<ChunksIndex>,
     blocks: Query<&ChunkBlocks>,
     chunks: Query<(Entity, &Chunk), Candidate>,
     loaders: Query<(&Transform, &Loader)>,
+    assets: Res<MeshAssets>,
     mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     for (entity, &chunk) in &chunks {
@@ -30,7 +65,7 @@ pub fn chunk_meshing(
                 let mesh = chunk_build_mesh(&index, blocks, chunk);
                 commands.entity(entity).remove::<NeedsRemeshing>().insert((
                     Mesh3d(meshes.add(mesh)),
-                    MeshMaterial3d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
+                    MeshMaterial3d(assets.material.clone()),
                 ));
             }
         }
@@ -48,7 +83,7 @@ pub fn chunk_demeshing(
         }) {
             commands
                 .entity(entity)
-                .remove::<(NeedsRemeshing, Mesh3d, MeshMaterial3d<StandardMaterial>)>();
+                .remove::<(NeedsRemeshing, Mesh3d, MeshMaterial3d<AtlasMaterial>)>();
         }
     }
 }
@@ -56,6 +91,8 @@ pub fn chunk_demeshing(
 pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk: Chunk) -> Mesh {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
+    let mut texture_uvs = Vec::new();
+    let mut texture_indices = Vec::new();
     let mut indices = Vec::new();
     let entity = index.get(chunk).unwrap();
     for (&local, ()) in &blocks.get(entity).unwrap().blocks {
@@ -64,6 +101,8 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
             local,
             &mut positions,
             &mut normals,
+            &mut texture_uvs,
+            &mut texture_indices,
             &mut indices,
             Sides::NORMAL.map(|v: IVec3| {
                 !index
@@ -75,6 +114,8 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
     Mesh::new(TriangleList, default())
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
         .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, texture_uvs)
+        .with_inserted_attribute(ATTRIBUTE_TEXTURE_INDEX, texture_indices)
         .with_inserted_indices(Indices::U32(indices))
 }
 
@@ -82,6 +123,8 @@ fn make_cube_mesh(
     local: IVec3,
     positions: &mut Vec<[f32; 3]>,
     normals: &mut Vec<[f32; 3]>,
+    texture_uvs: &mut Vec<[f32; 2]>,
+    texture_indices: &mut Vec<u32>,
     indices: &mut Vec<u32>,
     visible: Sides<bool>,
 ) {
@@ -89,11 +132,10 @@ fn make_cube_mesh(
     for side in Side::ALL {
         if visible[side] {
             let index = positions.len() as u32;
-            positions.extend(
-                side.quad()
-                    .map(|v| <[f32; 3]>::from(Vec3::from(v) + local.as_vec3())),
-            );
+            positions.extend(side.quad().map(|v| <[f32; 3]>::from(v + local.as_vec3())));
             normals.extend([side.normal(); 4]);
+            texture_uvs.extend([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+            texture_indices.extend([0; 4]);
             indices.extend([
                 index + 0,
                 index + 1,

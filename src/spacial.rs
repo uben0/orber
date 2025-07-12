@@ -126,7 +126,7 @@ impl Side {
         }
     }
     /// A quadruple of points forming a clockwise square
-    pub fn quad(self) -> [[f32; 3]; 4] {
+    pub fn quad(self) -> [Vec3; 4] {
         let (swap, depth) = match self {
             Side::XPos => (Swizzle3::XYZ, 1.0), // shift 0, clockwise
             Side::XNeg => (Swizzle3::XZY, 0.0), // shift 0, counter clockwise
@@ -135,12 +135,14 @@ impl Side {
             Side::ZPos => (Swizzle3::YZX, 1.0), // shift 2, clockwise
             Side::ZNeg => (Swizzle3::ZYX, 0.0), // shift 2, counter clockwise
         };
+        // TODO: replace with compose
         [
             swap * [depth, 0.0, 0.0],
             swap * [depth, 1.0, 0.0],
             swap * [depth, 1.0, 1.0],
             swap * [depth, 0.0, 1.0],
         ]
+        .map(Vec3::from)
     }
     pub fn normal(self) -> [f32; 3] {
         Sides::<Vec3>::NORMAL[self].into()

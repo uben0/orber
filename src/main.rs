@@ -1,7 +1,8 @@
 use crate::{
+    atlas_material::AtlasMaterial,
     axis_overlay::AxisOverlayPlugin,
     chunk_blocks::chunk_generation,
-    chunk_meshing::{chunk_demeshing, chunk_meshing},
+    chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup},
     chunks::{Loader, Modify, chunk_indexer, chunk_state_show, chunks_setup},
     physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity},
     pointed_block::{BlockPointer, BlockPointingPlugin, Pointing},
@@ -14,6 +15,7 @@ use bevy::{
 use bevy_framepace::FramepacePlugin;
 use std::f32::consts::PI;
 
+mod atlas_material;
 mod axis_overlay;
 mod chunk_blocks;
 mod chunk_meshing;
@@ -38,8 +40,9 @@ fn main() {
             },
             BlockPointingPlugin,
             PhysicsPlugin,
+            MaterialPlugin::<AtlasMaterial>::default(),
         ))
-        .add_systems(Startup, (setup, chunks_setup))
+        .add_systems(Startup, (setup, chunks_setup, chunks_mesh_setup))
         .add_systems(
             Update,
             (
