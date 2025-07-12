@@ -259,6 +259,14 @@ impl Loader {
     pub fn inside_zone(self, loader: Vec3, chunk: Chunk, zone: u32) -> bool {
         Self::distance(loader, chunk.center(), zone) <= self.radius
     }
+    pub fn inside_zone2(self, loader: Vec3, chunk: Chunk, zone: u32) -> Option<u32> {
+        let distance = Self::distance(loader, chunk.center(), zone);
+        if distance <= self.radius {
+            Some(distance as u32)
+        } else {
+            None
+        }
+    }
     pub fn outside_zone(self, loader: Vec3, chunk: Chunk, zone: u32) -> bool {
         Self::distance(loader, chunk.center(), zone) > self.radius + self.buffer
     }

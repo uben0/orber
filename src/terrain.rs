@@ -1,0 +1,41 @@
+use bevy::math::{IVec2, Vec2};
+
+fn sigmoid(x: f32) -> f32 {
+    x.exp() / ((-x).exp() + x.exp())
+}
+fn logistic(x: f32) -> f32 {
+    (x.exp() + 1.0).ln()
+}
+fn terrain(x: f32) -> f32 {
+    sigmoid(x + 5.0) * (1.0 + logistic(x - 5.0))
+}
+
+fn harmonic_noise(harmonic: &[(f32, f32)], at: Vec2) -> f32 {
+    let mut value = 0.0;
+    let mut span = 0.0;
+    for &(frequency, amplitude) in harmonic {
+        value += amplitude * noisy_bevy::simplex_noise_2d(at / frequency);
+        span += amplitude;
+    }
+    value / span
+}
+
+pub struct TerrainDescriptor {
+    pub continent: f32,
+    pub elevation: f32,
+    pub sediment: f32,
+}
+
+impl TerrainDescriptor {
+    pub fn at(global: IVec2) -> Self {
+        let continent = harmonic_noise(&[(100.0, 1.0)], global.as_vec2());
+        let continent = (continent - 0.5) * 50.0;
+        let elevation = terrain(continent);
+        let sediment = 1.0;
+        Self {
+            continent,
+            elevation,
+            sediment,
+        }
+    }
+}

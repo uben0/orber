@@ -15,6 +15,7 @@ use bevy::{
 use bevy_framepace::FramepacePlugin;
 use std::f32::consts::PI;
 
+mod array_queue;
 mod atlas_material;
 mod axis_overlay;
 mod chunk_blocks;
@@ -25,6 +26,7 @@ mod physics;
 mod pointed_block;
 mod ray_travel;
 mod spacial;
+mod terrain;
 
 const CHUNK_WIDTH: i32 = 32;
 
@@ -56,7 +58,7 @@ fn main() {
                 chunk_demeshing,
                 chunk_indexer,
                 chunk_generation,
-                chunk_state_show,
+                // chunk_state_show,
                 toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
             ),
         )
@@ -86,7 +88,7 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             size: vec3(0.8, 1.9, 0.8),
             anchor: vec3(0.4, 1.7, 0.4),
         },
-        Loader::new(40.0, 10.0),
+        Loader::new(140.0, 10.0),
         Transform::from_xyz(5.0, 8.0, 5.0),
         Camera3d::default(),
         Projection::Perspective(PerspectiveProjection {
