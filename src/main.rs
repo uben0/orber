@@ -168,8 +168,8 @@ fn control_player_physics(
     let dir = dir.normalize_or_zero();
 
     let force = match (grounded, keys.pressed(KeyCode::KeyA)) {
-        (true, true) => 100.0,
-        (true, false) => 70.0,
+        (true, true) => 110.0,
+        (true, false) => 90.0,
         (false, _) => 40.0,
     };
 
