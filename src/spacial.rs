@@ -1,4 +1,4 @@
-use bevy::math::{IVec3, Vec3};
+use bevy::math::{IVec3, Vec3, Vec3Swizzles};
 use std::ops::{Div, Index, IndexMut, Mul};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,22 +49,6 @@ impl AxisSwap {
         }
     }
 }
-impl Mul<AxisSwap> for [f32; 3] {
-    type Output = Self;
-
-    fn mul(self, swap: AxisSwap) -> Self::Output {
-        let [x, y, z] = self;
-        match swap {
-            AxisSwap::XYZ => [x, y, z],
-            AxisSwap::XZY => [x, z, y],
-            AxisSwap::YXZ => [y, x, z],
-            AxisSwap::YZX => [y, z, x],
-            AxisSwap::ZXY => [z, x, y],
-            AxisSwap::ZYX => [z, y, x],
-        }
-    }
-}
-// impl Div<AxisS
 
 impl<T> Index<Side> for [T; 6] {
     type Output = T;
@@ -175,10 +159,10 @@ impl Side {
         };
         // TODO: replace with compose
         [
-            [depth, 0.0, 0.0] * swap,
-            [depth, 1.0, 0.0] * swap,
-            [depth, 1.0, 1.0] * swap,
-            [depth, 0.0, 1.0] * swap,
+            [depth, 0.0, 0.0].axis_swap(swap),
+            [depth, 1.0, 0.0].axis_swap(swap),
+            [depth, 1.0, 1.0].axis_swap(swap),
+            [depth, 0.0, 1.0].axis_swap(swap),
         ]
         .map(Vec3::from)
     }
@@ -194,7 +178,23 @@ impl Side {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sign {
+    Pos,
+    Neg,
+}
+
 impl Axis {
+    pub const fn swap(self, sign: Sign) -> AxisSwap {
+        match (self, sign) {
+            (Axis::X, Sign::Pos) => AxisSwap::XYZ,
+            (Axis::X, Sign::Neg) => AxisSwap::XZY,
+            (Axis::Y, Sign::Pos) => AxisSwap::YZX,
+            (Axis::Y, Sign::Neg) => AxisSwap::YXZ,
+            (Axis::Z, Sign::Pos) => AxisSwap::ZXY,
+            (Axis::Z, Sign::Neg) => AxisSwap::ZYX,
+        }
+    }
     pub const fn negative(self) -> Side {
         match self {
             Axis::X => Side::XNeg,
@@ -211,49 +211,30 @@ impl Axis {
     }
 }
 
-pub trait AxisSplit {
-    type Scalar;
-    fn split(self, axis: Axis) -> (Self::Scalar, [Self::Scalar; 2]);
-    fn compose(axis: Axis, it: Self::Scalar, uv: [Self::Scalar; 2]) -> Self;
-}
-
-impl AxisSplit for Vec3 {
-    type Scalar = f32;
-    fn split(self, axis: Axis) -> (f32, [f32; 2]) {
-        match axis {
-            Axis::X => (self.x, [self.y, self.z]),
-            Axis::Y => (self.y, [self.x, self.z]),
-            Axis::Z => (self.z, [self.x, self.y]),
-        }
+pub trait Vec3Ext<T>: From<[T; 3]> + Into<[T; 3]> {
+    fn split(self, axis: Axis) -> (T, [T; 2]) {
+        let [it, u, v] = self.into().axis_swap(axis.swap(Sign::Pos));
+        (it, [u, v])
     }
-
-    fn compose(axis: Axis, it: Self::Scalar, [u, v]: [Self::Scalar; 2]) -> Self {
-        match axis {
-            Axis::X => Self { x: it, y: u, z: v },
-            Axis::Y => Self { x: u, y: it, z: v },
-            Axis::Z => Self { x: u, y: v, z: it },
+    fn compose(axis: Axis, it: T, [u, v]: [T; 2]) -> Self {
+        ([it, u, v].axis_swap(axis.swap(Sign::Pos).inverse())).into()
+    }
+    fn axis_swap(self, swap: AxisSwap) -> Self {
+        let [x, y, z] = self.into();
+        match swap {
+            AxisSwap::XYZ => [x, y, z],
+            AxisSwap::XZY => [x, z, y],
+            AxisSwap::YXZ => [y, x, z],
+            AxisSwap::YZX => [y, z, x],
+            AxisSwap::ZXY => [z, x, y],
+            AxisSwap::ZYX => [z, y, x],
         }
+        .into()
     }
 }
-
-impl AxisSplit for IVec3 {
-    type Scalar = i32;
-    fn split(self, axis: Axis) -> (Self::Scalar, [Self::Scalar; 2]) {
-        match axis {
-            Axis::X => (self.x, [self.y, self.z]),
-            Axis::Y => (self.y, [self.x, self.z]),
-            Axis::Z => (self.z, [self.x, self.y]),
-        }
-    }
-
-    fn compose(axis: Axis, it: Self::Scalar, [u, v]: [Self::Scalar; 2]) -> Self {
-        match axis {
-            Axis::X => Self { x: it, y: u, z: v },
-            Axis::Y => Self { x: u, y: it, z: v },
-            Axis::Z => Self { x: u, y: v, z: it },
-        }
-    }
-}
+impl<T> Vec3Ext<T> for [T; 3] {}
+impl Vec3Ext<f32> for Vec3 {}
+impl Vec3Ext<i32> for IVec3 {}
 
 impl Index<Axis> for IVec3 {
     type Output = i32;

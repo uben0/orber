@@ -2,8 +2,6 @@ use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
 use crate::spacial::{Side, Sides, SidesExt};
-use bevy::asset::RenderAssetUsages;
-use bevy::image::{CompressedImageFormats, ImageSampler};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
@@ -41,7 +39,6 @@ pub fn chunk_meshing(
     loaders: Query<(&Transform, &Loader)>,
     assets: Res<MeshAssets>,
     mut commands: Commands,
-    // mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     for (entity, &chunk) in &chunks {

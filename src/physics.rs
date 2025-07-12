@@ -1,11 +1,10 @@
-use bevy::prelude::*;
-
 use crate::{
     chunk_blocks::ChunkBlocks,
     chunks::ChunksIndex,
     ray_travel::RayTraveler,
-    spacial::{AxisSplit, Side},
+    spacial::{Side, Vec3Ext},
 };
+use bevy::prelude::*;
 
 #[derive(SystemSet, Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ApplyPhysics;
