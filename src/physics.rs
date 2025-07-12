@@ -2,7 +2,7 @@ use crate::{
     chunk_blocks::ChunkBlocks,
     chunks::ChunksIndex,
     ray_travel::RayTraveler,
-    spacial::{Side, Vec3Ext},
+    spacial::{Side, Sign, Vec3Ext},
 };
 use bevy::prelude::*;
 
@@ -77,14 +77,15 @@ fn apply_velocity(
                 // to avoid code duplication, each symetric situation through dimension permutation is made identic by a reversible swizzle
                 let axis = step.side.axis();
 
-                let (_, [plane_u, plane_v]) = (step.position - corner_select).split(axis);
-                let (_, [size_u, size_v]) = cl.size.split(axis);
+                let (_, [plane_u, plane_v]) =
+                    (step.position - corner_select).split(axis, Sign::Pos);
+                let (_, [size_u, size_v]) = cl.size.split(axis, Sign::Pos);
 
                 // on the UV plane, we select all voxels covered by the side of the collider
                 for u in plane_u.floor() as i32..=(plane_u + size_u).floor() as i32 {
                     for v in plane_v.floor() as i32..=(plane_v + size_v).floor() as i32 {
                         // we find the global coordinate of each voxel
-                        let selected = IVec3::compose(axis, step.voxel[axis], [u, v]);
+                        let selected = IVec3::compose(axis, Sign::Pos, step.voxel[axis], [u, v]);
 
                         // if a block is present, a collision occur
                         if index.get_block(|e| blocks.get(e), selected) == Some(true) {

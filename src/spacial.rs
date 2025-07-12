@@ -1,5 +1,5 @@
-use bevy::math::{IVec3, Vec3, Vec3Swizzles};
-use std::ops::{Div, Index, IndexMut, Mul};
+use bevy::math::{IVec3, Vec3};
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -125,6 +125,9 @@ impl SidesExt<IVec3> for Sides<IVec3> {
     };
 }
 
+pub const QUAD_UV: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+pub const QUAD_INDICES: [u32; 6] = [0, 1, 2, 2, 3, 0];
+
 impl Side {
     pub const ALL: [Self; 6] = [
         Self::XPos,
@@ -147,24 +150,21 @@ impl Side {
             Side::ZNeg => Side::ZPos,
         }
     }
+    pub const fn sign(self) -> Sign {
+        match self {
+            Side::XPos | Side::YPos | Side::ZPos => Sign::Pos,
+            Side::XNeg | Side::YNeg | Side::ZNeg => Sign::Neg,
+        }
+    }
     /// A quadruple of points forming a clockwise square
-    pub fn quad(self) -> [Vec3; 4] {
-        let (swap, depth) = match self {
-            Side::XPos => (AxisSwap::XYZ, 1.0), // shift 0, clockwise
-            Side::XNeg => (AxisSwap::XZY, 0.0), // shift 0, counter clockwise
-            Side::YPos => (AxisSwap::ZXY, 1.0), // shift 1, clockwise
-            Side::YNeg => (AxisSwap::YXZ, 0.0), // shift 1, counter clockwise
-            Side::ZPos => (AxisSwap::YZX, 1.0), // shift 2, clockwise
-            Side::ZNeg => (AxisSwap::ZYX, 0.0), // shift 2, counter clockwise
+    pub fn quad(self) -> [[f32; 3]; 4] {
+        let sign = self.sign();
+        let axis = self.axis();
+        let depth = match sign {
+            Sign::Pos => 1.0,
+            Sign::Neg => 0.0,
         };
-        // TODO: replace with compose
-        [
-            [depth, 0.0, 0.0].axis_swap(swap),
-            [depth, 1.0, 0.0].axis_swap(swap),
-            [depth, 1.0, 1.0].axis_swap(swap),
-            [depth, 0.0, 1.0].axis_swap(swap),
-        ]
-        .map(Vec3::from)
+        QUAD_UV.map(|uv| Vec3Ext::compose(axis, sign, depth, uv))
     }
     pub fn normal(self) -> [f32; 3] {
         Sides::<Vec3>::NORMAL[self].into()
@@ -212,12 +212,12 @@ impl Axis {
 }
 
 pub trait Vec3Ext<T>: From<[T; 3]> + Into<[T; 3]> {
-    fn split(self, axis: Axis) -> (T, [T; 2]) {
-        let [it, u, v] = self.into().axis_swap(axis.swap(Sign::Pos));
+    fn split(self, axis: Axis, sign: Sign) -> (T, [T; 2]) {
+        let [it, u, v] = self.into().axis_swap(axis.swap(sign));
         (it, [u, v])
     }
-    fn compose(axis: Axis, it: T, [u, v]: [T; 2]) -> Self {
-        ([it, u, v].axis_swap(axis.swap(Sign::Pos).inverse())).into()
+    fn compose(axis: Axis, sign: Sign, it: T, [u, v]: [T; 2]) -> Self {
+        ([it, u, v].axis_swap(axis.swap(sign).inverse())).into()
     }
     fn axis_swap(self, swap: AxisSwap) -> Self {
         let [x, y, z] = self.into();
@@ -230,6 +230,11 @@ pub trait Vec3Ext<T>: From<[T; 3]> + Into<[T; 3]> {
             AxisSwap::ZYX => [z, y, x],
         }
         .into()
+    }
+    fn zips(self, rhs: impl Vec3Ext<T>, mut map: impl FnMut(T, T) -> T) -> Self {
+        let [x1, y1, z1] = self.into();
+        let [x2, y2, z2] = rhs.into();
+        [map(x1, x2), map(y1, y2), map(z1, z2)].into()
     }
 }
 impl<T> Vec3Ext<T> for [T; 3] {}

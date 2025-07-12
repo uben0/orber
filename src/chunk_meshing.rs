@@ -1,7 +1,7 @@
 use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
-use crate::spacial::{Side, Sides, SidesExt};
+use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Vec3Ext};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
@@ -82,8 +82,9 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
     let entity = index.get(chunk).unwrap();
     for (&local, ()) in &blocks.get(entity).unwrap().blocks {
         let global = local_to_global(chunk, local);
+        assert_is_local(local);
         make_cube_mesh(
-            local,
+            local.as_vec3(),
             &mut positions,
             &mut normals,
             &mut texture_uvs,
@@ -105,7 +106,7 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
 }
 
 fn make_cube_mesh(
-    local: IVec3,
+    parent: Vec3,
     positions: &mut Vec<[f32; 3]>,
     normals: &mut Vec<[f32; 3]>,
     texture_uvs: &mut Vec<[f32; 2]>,
@@ -113,22 +114,14 @@ fn make_cube_mesh(
     indices: &mut Vec<u32>,
     visible: Sides<bool>,
 ) {
-    assert_is_local(local);
     for side in Side::ALL {
         if visible[side] {
             let index = positions.len() as u32;
-            positions.extend(side.quad().map(|v| <[f32; 3]>::from(v + local.as_vec3())));
+            positions.extend(side.quad().map(|v| v.zips(parent, |l, r| l + r)));
             normals.extend([side.normal(); 4]);
-            texture_uvs.extend([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+            texture_uvs.extend(QUAD_UV);
             texture_indices.extend([0; 4]);
-            indices.extend([
-                index + 0,
-                index + 1,
-                index + 2,
-                index + 2,
-                index + 3,
-                index + 0,
-            ]);
+            indices.extend(QUAD_INDICES.map(|i| i + index));
         }
     }
 }
