@@ -6,7 +6,6 @@ use crate::{
 };
 use arrayvec::ArrayVec;
 use bevy::{math::Vec3Swizzles, platform::collections::HashMap, prelude::*};
-use noisy_bevy::simplex_noise_2d;
 
 #[derive(Component)]
 pub struct ChunkBlocks {

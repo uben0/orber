@@ -3,7 +3,7 @@ use crate::{
     axis_overlay::AxisOverlayPlugin,
     chunk_blocks::chunk_generation,
     chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup},
-    chunks::{Loader, Modify, chunk_indexer, chunk_state_show, chunks_setup},
+    chunks::{Loader, Modify, chunk_indexer, chunks_setup},
     physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity},
     pointed_block::{BlockPointer, BlockPointingPlugin, Pointing},
 };
@@ -14,6 +14,7 @@ use bevy::{
 };
 use bevy_framepace::FramepacePlugin;
 use std::f32::consts::PI;
+use std::fmt::Write;
 
 mod array_queue;
 mod atlas_material;
@@ -60,6 +61,7 @@ fn main() {
                 chunk_generation,
                 // chunk_state_show,
                 toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
+                inspect_ui,
             ),
         )
         .run();
@@ -96,6 +98,47 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             ..default()
         }),
     ));
+    let font = TextFont {
+        font_size: 12.0,
+        ..default()
+    };
+    commands.spawn((
+        InspectUi,
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.2)),
+        Node {
+            left: Val::Px(10.0),
+            top: Val::Px(10.0),
+            padding: UiRect::all(Val::Px(5.0)),
+            flex_direction: FlexDirection::Column,
+            ..default()
+        },
+        children![
+            (Text(default()), font.clone()),
+            (Text(default()), font.clone()),
+            (Text(default()), font.clone()),
+        ],
+    ));
+}
+
+#[derive(Component)]
+struct InspectUi;
+
+fn inspect_ui(
+    mut texts: Query<&mut Text>,
+    root: Single<(Entity, &Children), With<InspectUi>>,
+    player: Single<&Transform, With<Player>>,
+) {
+    let (_, children) = root.into_inner();
+
+    for (axis, child, value) in [
+        ("x", 0, player.translation.x),
+        ("y", 1, player.translation.y),
+        ("z", 2, player.translation.z),
+    ] {
+        let text = &mut texts.get_mut(children[child]).unwrap().0;
+        text.clear();
+        write!(text, "{}: {:>+8.3}", axis, value).unwrap();
+    }
 }
 
 fn player_acts(
