@@ -1,5 +1,8 @@
 use bevy::math::{IVec3, Vec3};
-use std::ops::{Index, IndexMut};
+use std::{
+    array::IntoIter,
+    ops::{Index, IndexMut},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -91,12 +94,24 @@ impl<T> Sides<T> {
             z_neg: m(self.z_neg),
         }
     }
-    pub fn all(self, p: impl FnMut(T) -> bool) -> bool {
+    pub fn list(self) -> IntoIter<T, 6> {
         [
             self.x_pos, self.x_neg, self.y_pos, self.y_neg, self.z_pos, self.z_neg,
         ]
         .into_iter()
-        .all(p)
+    }
+    pub const fn all(elem: T) -> Self
+    where
+        T: Copy,
+    {
+        Sides {
+            x_pos: elem,
+            x_neg: elem,
+            y_pos: elem,
+            y_neg: elem,
+            z_pos: elem,
+            z_neg: elem,
+        }
     }
 }
 

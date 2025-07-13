@@ -160,27 +160,27 @@ pub fn assert_is_local(local: IVec3) {
     assert!(local.z < CHUNK_WIDTH);
 }
 
-pub fn chunk_state_show(
-    chunks: Query<(&Chunk, Has<ChunkBlocks>, Has<Mesh3d>)>,
-    mut gizmos: Gizmos,
-) {
-    for (&chunk, has_blocks, has_mesh) in &chunks {
-        let color = match (has_blocks, has_mesh) {
-            (false, false) => Color::srgb(1.0, 0.0, 0.0),
-            (true, false) => Color::srgb(1.0, 1.0, 0.0),
-            (true, true) => Color::srgb(0.0, 0.0, 1.0),
-            (false, true) => panic!(),
-        };
-        gizmos.cuboid(
-            Transform {
-                translation: chunk.center(),
-                rotation: default(),
-                scale: Vec3::splat(CHUNK_WIDTH as f32 - 1.0),
-            },
-            color,
-        );
-    }
-}
+// pub fn chunk_state_show(
+//     chunks: Query<(&Chunk, Has<ChunkBlocks>, Has<Mesh3d>)>,
+//     mut gizmos: Gizmos,
+// ) {
+//     for (&chunk, has_blocks, has_mesh) in &chunks {
+//         let color = match (has_blocks, has_mesh) {
+//             (false, false) => Color::srgb(1.0, 0.0, 0.0),
+//             (true, false) => Color::srgb(1.0, 1.0, 0.0),
+//             (true, true) => Color::srgb(0.0, 0.0, 1.0),
+//             (false, true) => panic!(),
+//         };
+//         gizmos.cuboid(
+//             Transform {
+//                 translation: chunk.center(),
+//                 rotation: default(),
+//                 scale: Vec3::splat(CHUNK_WIDTH as f32 - 1.0),
+//             },
+//             color,
+//         );
+//     }
+// }
 
 pub fn chunk_indexer(
     loaders: Query<(&Transform, &Loader)>,

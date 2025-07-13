@@ -2,7 +2,7 @@ use crate::CHUNK_WIDTH;
 use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
-use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
+use crate::chunks::{Chunk, ChunksIndex, Loader, local_to_global};
 use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Vec3Ext};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
@@ -48,7 +48,7 @@ pub fn chunk_meshing(
             loader.inside_zone(transform.translation, chunk, Loader::ZONE_MESH)
         }) {
             let has_blocks = |n| index.get(n).map(|e| blocks.contains(e)).unwrap_or(false);
-            if chunk.neighbours().all(has_blocks) {
+            if chunk.neighbours().list().all(has_blocks) {
                 let mesh = chunk_build_mesh(&index, blocks, chunk);
                 commands.entity(entity).remove::<NeedsRemeshing>().insert((
                     Mesh3d(meshes.add(mesh)),
@@ -92,7 +92,7 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
 
                 let block = index.get_block(|e| blocks.get(e), global).unwrap();
 
-                if block.oclusion() == Oclusion::Full {
+                if let Some(textures) = block.textures() {
                     make_cube_mesh(
                         local.as_vec3(),
                         &mut positions,
@@ -100,6 +100,7 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
                         &mut texture_uvs,
                         &mut texture_indices,
                         &mut indices,
+                        textures,
                         Sides::NORMAL.map(|v: IVec3| {
                             index
                                 .get_block(|e| blocks.get(e), global + v)
@@ -127,6 +128,7 @@ fn make_cube_mesh(
     texture_uvs: &mut Vec<[f32; 2]>,
     texture_indices: &mut Vec<u32>,
     indices: &mut Vec<u32>,
+    textures: Sides<u32>,
     visible: Sides<bool>,
 ) {
     for side in Side::ALL {
@@ -135,7 +137,7 @@ fn make_cube_mesh(
             positions.extend(side.quad().map(|v| v.zips(parent, |l, r| l + r)));
             normals.extend([side.normal(); 4]);
             texture_uvs.extend(QUAD_UV);
-            texture_indices.extend([0; 4]);
+            texture_indices.extend([textures[side]; 4]);
             indices.extend(QUAD_INDICES.map(|i| i + index));
         }
     }

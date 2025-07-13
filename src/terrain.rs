@@ -21,7 +21,7 @@ fn harmonic_noise(harmonic: &[(f32, f32)], at: Vec2) -> f32 {
 }
 
 pub struct TerrainDescriptor {
-    pub continent: f32,
+    // pub continent: f32,
     pub elevation: f32,
     pub sediment: f32,
 }
@@ -36,7 +36,7 @@ impl TerrainDescriptor {
         let elevation = (terrain(continent) - 1.0) * 20.0;
         let sediment = 1.0;
         Self {
-            continent,
+            // continent,
             elevation,
             sediment,
         }
