@@ -20,8 +20,8 @@ pub enum Block {
 //       in the ocean it is water
 #[derive(Component)]
 pub struct ChunkBlocks {
-    pub default: Block,
-    pub blocks: HashMap<IVec3, Block>,
+    default: Block,
+    blocks: HashMap<IVec3, Block>,
 }
 
 const MAX_CHUNK_GEN_PER_FRAME: usize = 4;
@@ -49,8 +49,12 @@ pub fn chunk_generation(
 }
 
 impl ChunkBlocks {
+    pub const AIR: Self = Self {
+        default: Block::Air,
+        blocks: HashMap::new(),
+    };
     pub fn new(chunk: Chunk) -> Self {
-        let mut blocks = HashMap::new();
+        let mut blocks = Self::AIR;
         for x in 0..CHUNK_WIDTH {
             for z in 0..CHUNK_WIDTH {
                 let local = IVec3 { x, y: 0, z };
@@ -61,20 +65,29 @@ impl ChunkBlocks {
                 for y in 0..CHUNK_WIDTH {
                     let local = IVec3 { x, y, z };
                     let global = local_to_global(chunk, local);
-                    if global.y > terrain.elevation.round() as i32 {
-                        break;
-                    }
-                    blocks.insert(local, Block::Stone);
+
+                    let block = if global.y < terrain.elevation.round() as i32 {
+                        Block::Stone
+                    } else if global.y < (terrain.elevation + terrain.sediment).round() as i32 {
+                        Block::Sand
+                    } else {
+                        Block::Air
+                    };
+                    blocks.set(local, block);
                 }
             }
         }
-        Self {
-            blocks,
-            default: Block::Air,
-        }
+        blocks
     }
     pub fn get(&self, local: IVec3) -> Block {
         self.blocks.get(&local).copied().unwrap_or(self.default)
+    }
+    pub fn set(&mut self, local: IVec3, block: Block) {
+        if block == self.default {
+            self.blocks.remove(&local);
+        } else {
+            self.blocks.insert(local, block);
+        }
     }
 }
 

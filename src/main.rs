@@ -148,7 +148,10 @@ fn player_acts(
 ) {
     if let Some(Pointing { global, side }) = player.pointing {
         if mouse.just_pressed(MouseButton::Left) {
-            commands.trigger(Modify::Remove { global });
+            commands.trigger(Modify::Place {
+                global,
+                block: Block::Air,
+            });
         }
         if mouse.just_pressed(MouseButton::Right) {
             commands.trigger(Modify::Place {

@@ -26,7 +26,7 @@ pub struct Loader {
 #[derive(Event, Debug)]
 pub enum Modify {
     // TODO: now that air is a block, we only need place
-    Remove { global: IVec3 },
+    // Remove { global: IVec3 },
     Place { global: IVec3, block: Block },
 }
 
@@ -42,35 +42,35 @@ fn observe_chunk_modify(
     mut commands: Commands,
 ) {
     match *trigger {
-        Modify::Remove { global } => {
-            let Some((chunk, _)) = index.global_to_local(global) else {
-                return;
-            };
-            index.set_block(|e| blocks.get_mut(e), global, None);
-            commands.entity(chunk).insert(NeedsRemeshing);
-            for side in Side::ALL {
-                let global = side.neighbour(global);
-                let Some((neighbour, _)) = index.global_to_local(global) else {
-                    continue;
-                };
-                if neighbour == chunk {
-                    continue;
-                }
-                if index
-                    .get_block(|e| blocks.get(e), global)
-                    .unwrap_or(Block::Air)
-                    .oclusion()
-                    != Oclusion::None
-                {
-                    commands.entity(neighbour).insert(NeedsRemeshing);
-                }
-            }
-        }
+        // Modify::Remove { global } => {
+        //     let Some((chunk, _)) = index.global_to_local(global) else {
+        //         return;
+        //     };
+        //     index.set_block(|e| blocks.get_mut(e), global, None);
+        //     commands.entity(chunk).insert(NeedsRemeshing);
+        //     for side in Side::ALL {
+        //         let global = side.neighbour(global);
+        //         let Some((neighbour, _)) = index.global_to_local(global) else {
+        //             continue;
+        //         };
+        //         if neighbour == chunk {
+        //             continue;
+        //         }
+        //         if index
+        //             .get_block(|e| blocks.get(e), global)
+        //             .unwrap_or(Block::Air)
+        //             .oclusion()
+        //             != Oclusion::None
+        //         {
+        //             commands.entity(neighbour).insert(NeedsRemeshing);
+        //         }
+        //     }
+        // }
         Modify::Place { global, block } => {
             let Some((chunk, _)) = index.global_to_local(global) else {
                 return;
             };
-            index.set_block(|e| blocks.get_mut(e), global, Some(block));
+            index.set_block(|e| blocks.get_mut(e), global, block);
             commands.entity(chunk).insert(NeedsRemeshing);
             for side in Side::ALL {
                 let global = side.neighbour(global);
@@ -166,7 +166,7 @@ impl ChunksIndex {
         &self,
         blocks: impl QueryForMut<'a, ChunkBlocks>,
         global: IVec3,
-        block: Option<Block>,
+        block: Block,
     ) {
         let Some((chunk, local)) = self.global_to_local(global) else {
             return;
@@ -174,11 +174,7 @@ impl ChunksIndex {
         let Some(mut blocks) = blocks(chunk).ok() else {
             return;
         };
-        if let Some(block) = block {
-            blocks.blocks.insert(local, block);
-        } else {
-            blocks.blocks.remove(&local);
-        }
+        blocks.set(local, block);
     }
 
     pub fn get(&self, chunk: Chunk) -> Option<Entity> {
