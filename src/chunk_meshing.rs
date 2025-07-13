@@ -134,24 +134,33 @@ fn make_cube_mesh(
     for side in Side::ALL {
         if visible[side] {
             let index = positions.len() as u32;
-            positions.extend(side.quad().map(|v| v.zips(parent, |l, r| l + r)));
-            normals.extend([side.normal(); 4]);
-            let flip_logit = |logit: f32, sign| match sign {
-                Sign::Pos => 0.0 + logit,
-                Sign::Neg => 1.0 - logit,
-            };
-            let swap_pair = |[lhs, rhs]: [f32; 2], sign| match sign {
-                Sign::Pos => [lhs, rhs],
-                Sign::Neg => [rhs, lhs],
-            };
+            let quad = side.quad();
             let ([uv_swap, u_flip, v_flip], texture_index) = textures[side];
-            texture_uvs.extend(
-                QUAD_UV
-                    .map(|uv| swap_pair(uv, uv_swap))
-                    .map(|[u, v]| [flip_logit(u, u_flip), flip_logit(v, v_flip)]),
-            );
-            texture_indices.extend([texture_index; 4]);
-            indices.extend(QUAD_INDICES.map(|i| i + index));
+
+            for i in 0..4 {
+                positions.push(quad[i].zips(parent, |l, r| l + r));
+                normals.push(side.normal());
+
+                let [u, v] = QUAD_UV[i];
+                let [u, v] = match uv_swap {
+                    Sign::Pos => [u, v],
+                    Sign::Neg => [v, u],
+                };
+                let u = match u_flip {
+                    Sign::Pos => 0.0 + u,
+                    Sign::Neg => 1.0 - u,
+                };
+                let v = match v_flip {
+                    Sign::Pos => 0.0 + v,
+                    Sign::Neg => 1.0 - v,
+                };
+                texture_uvs.push([u, v]);
+                texture_indices.push(texture_index);
+            }
+
+            for i in QUAD_INDICES {
+                indices.push(i + index);
+            }
         }
     }
 }

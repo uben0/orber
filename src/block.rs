@@ -29,13 +29,13 @@ impl Block {
     }
     pub const fn textures(self) -> Option<Sides<([Sign; 3], u32)>> {
         const PPP: [Sign; 3] = [Sign::Pos, Sign::Pos, Sign::Pos];
-        const PPN: [Sign; 3] = [Sign::Pos, Sign::Pos, Sign::Neg];
-        const PNP: [Sign; 3] = [Sign::Pos, Sign::Neg, Sign::Pos];
-        const PNN: [Sign; 3] = [Sign::Pos, Sign::Neg, Sign::Neg];
-        const NPP: [Sign; 3] = [Sign::Neg, Sign::Pos, Sign::Pos];
-        const NPN: [Sign; 3] = [Sign::Neg, Sign::Pos, Sign::Neg];
+        // const PPN: [Sign; 3] = [Sign::Pos, Sign::Pos, Sign::Neg];
+        // const PNP: [Sign; 3] = [Sign::Pos, Sign::Neg, Sign::Pos];
+        // const PNN: [Sign; 3] = [Sign::Pos, Sign::Neg, Sign::Neg];
+        // const NPP: [Sign; 3] = [Sign::Neg, Sign::Pos, Sign::Pos];
+        // const NPN: [Sign; 3] = [Sign::Neg, Sign::Pos, Sign::Neg];
         const NNP: [Sign; 3] = [Sign::Neg, Sign::Neg, Sign::Pos];
-        const NNN: [Sign; 3] = [Sign::Neg, Sign::Neg, Sign::Neg];
+        // const NNN: [Sign; 3] = [Sign::Neg, Sign::Neg, Sign::Neg];
         match self {
             Block::Air => None,
             Block::Stone => Some(Sides::all((PPP, TEXTURE_STONE))),
