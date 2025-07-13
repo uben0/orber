@@ -40,30 +40,6 @@ fn observe_chunk_modify(
     mut commands: Commands,
 ) {
     match *trigger {
-        // Modify::Remove { global } => {
-        //     let Some((chunk, _)) = index.global_to_local(global) else {
-        //         return;
-        //     };
-        //     index.set_block(|e| blocks.get_mut(e), global, None);
-        //     commands.entity(chunk).insert(NeedsRemeshing);
-        //     for side in Side::ALL {
-        //         let global = side.neighbour(global);
-        //         let Some((neighbour, _)) = index.global_to_local(global) else {
-        //             continue;
-        //         };
-        //         if neighbour == chunk {
-        //             continue;
-        //         }
-        //         if index
-        //             .get_block(|e| blocks.get(e), global)
-        //             .unwrap_or(Block::Air)
-        //             .oclusion()
-        //             != Oclusion::None
-        //         {
-        //             commands.entity(neighbour).insert(NeedsRemeshing);
-        //         }
-        //     }
-        // }
         Modify::Place { global, block } => {
             let Some((chunk, _)) = index.global_to_local(global) else {
                 return;
