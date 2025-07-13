@@ -56,7 +56,11 @@ impl ChunkBlocks {
                     let block = if global.y < terrain.elevation.round() as i32 {
                         Block::Stone
                     } else if global.y < (terrain.elevation + terrain.sediment).round() as i32 {
-                        Block::Sand
+                        if terrain.continent > 3.0 {
+                            Block::Grass
+                        } else {
+                            Block::Sand
+                        }
                     } else {
                         Block::Air
                     };
