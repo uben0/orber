@@ -1,7 +1,7 @@
 use crate::{
     atlas_material::AtlasMaterial,
     axis_overlay::AxisOverlayPlugin,
-    chunk_blocks::chunk_generation,
+    chunk_blocks::{Block, chunk_generation},
     chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup},
     chunks::{Loader, Modify, chunk_indexer, chunks_setup},
     physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity},
@@ -90,7 +90,7 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             size: vec3(0.8, 1.9, 0.8),
             anchor: vec3(0.4, 1.7, 0.4),
         },
-        Loader::new(140.0, 10.0),
+        Loader::new(256.0, 16.0),
         Transform::from_xyz(5.0, 8.0, 5.0),
         Camera3d::default(),
         Projection::Perspective(PerspectiveProjection {
@@ -153,7 +153,7 @@ fn player_acts(
         if mouse.just_pressed(MouseButton::Right) {
             commands.trigger(Modify::Place {
                 global: side.neighbour(global),
-                block: (),
+                block: Block::Stone,
             });
         }
     }

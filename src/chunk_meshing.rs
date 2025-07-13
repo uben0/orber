@@ -80,7 +80,7 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
     let mut texture_indices = Vec::new();
     let mut indices = Vec::new();
     let entity = index.get(chunk).unwrap();
-    for (&local, ()) in &blocks.get(entity).unwrap().blocks {
+    for (&local, _) in &blocks.get(entity).unwrap().blocks {
         let global = local_to_global(chunk, local);
         assert_is_local(local);
         make_cube_mesh(

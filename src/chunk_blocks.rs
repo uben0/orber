@@ -7,9 +7,20 @@ use crate::{
 use arrayvec::ArrayVec;
 use bevy::{math::Vec3Swizzles, platform::collections::HashMap, prelude::*};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Block {
+    Air,
+    Stone,
+    Sand,
+}
+
+// TODO: make the most aboundant block the default
+//       in the sky, it is air
+//       in the ground it is stone
+//       in the ocean it is water
 #[derive(Component)]
 pub struct ChunkBlocks {
-    pub blocks: HashMap<IVec3, ()>,
+    pub blocks: HashMap<IVec3, Block>,
 }
 
 const MAX_CHUNK_GEN_PER_FRAME: usize = 4;
@@ -49,10 +60,10 @@ impl ChunkBlocks {
                 for y in 0..CHUNK_WIDTH {
                     let local = IVec3 { x, y, z };
                     let global = local_to_global(chunk, local);
-                    if global.y > terrain.continent as i32 {
+                    if global.y > terrain.elevation.round() as i32 {
                         break;
                     }
-                    blocks.insert(local, ());
+                    blocks.insert(local, Block::Stone);
                 }
             }
         }

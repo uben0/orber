@@ -7,7 +7,7 @@ fn logistic(x: f32) -> f32 {
     (x.exp() + 1.0).ln()
 }
 fn terrain(x: f32) -> f32 {
-    sigmoid(x + 5.0) * (1.0 + logistic(x - 5.0))
+    sigmoid(x) * (1.0 + logistic(x - 6.0))
 }
 
 fn harmonic_noise(harmonic: &[(f32, f32)], at: Vec2) -> f32 {
@@ -28,9 +28,12 @@ pub struct TerrainDescriptor {
 
 impl TerrainDescriptor {
     pub fn at(global: IVec2) -> Self {
-        let continent = harmonic_noise(&[(100.0, 1.0)], global.as_vec2());
-        let continent = (continent - 0.5) * 50.0;
-        let elevation = terrain(continent);
+        let continent = harmonic_noise(
+            &[(400.0, 4.0), (200.0, 2.0), (100.0, 1.0)],
+            global.as_vec2(),
+        );
+        let continent = continent * 6.0;
+        let elevation = (terrain(continent) - 1.0) * 20.0;
         let sediment = 1.0;
         Self {
             continent,

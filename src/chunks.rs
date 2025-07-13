@@ -1,4 +1,4 @@
-use crate::chunk_blocks::ChunkBlocks;
+use crate::chunk_blocks::{Block, ChunkBlocks};
 use crate::chunk_meshing::NeedsRemeshing;
 use crate::spacial::{Side, Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
@@ -25,8 +25,9 @@ pub struct Loader {
 
 #[derive(Event, Debug)]
 pub enum Modify {
+    // TODO: now that air is a block, we only need place
     Remove { global: IVec3 },
-    Place { global: IVec3, block: () },
+    Place { global: IVec3, block: Block },
 }
 
 pub fn chunks_setup(mut commands: Commands) {
@@ -154,7 +155,7 @@ impl ChunksIndex {
         &self,
         blocks: impl QueryForMut<'a, ChunkBlocks>,
         global: IVec3,
-        block: Option<()>,
+        block: Option<Block>,
     ) {
         let Some((chunk, local)) = self.global_to_local(global) else {
             return;
