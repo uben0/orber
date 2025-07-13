@@ -1,7 +1,7 @@
 use crate::{
     atlas_material::AtlasMaterial,
     axis_overlay::AxisOverlayPlugin,
-    chunk_blocks::{Block, chunk_generation},
+    chunk_blocks::{Block, ChunkBlocks, chunk_generation},
     chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup},
     chunks::{Loader, Modify, chunk_indexer, chunks_setup},
     physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity},
@@ -62,6 +62,7 @@ fn main() {
                 // chunk_state_show,
                 toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
                 inspect_ui,
+                consistency_check.run_if(input_just_pressed(KeyCode::KeyY)),
             ),
         )
         .run();
@@ -118,6 +119,13 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             (Text(default()), font.clone()),
         ],
     ));
+}
+
+fn consistency_check(blocks: Query<&ChunkBlocks>) {
+    for blocks in blocks {
+        blocks.assert_consistency();
+    }
+    info!("consistency check successful");
 }
 
 #[derive(Component)]

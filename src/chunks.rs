@@ -169,9 +169,11 @@ impl ChunksIndex {
         block: Block,
     ) {
         let Some((chunk, local)) = self.global_to_local(global) else {
+            warn!("attempt to set block in non-indexed chunk");
             return;
         };
         let Some(mut blocks) = blocks(chunk).ok() else {
+            warn!("attempt to set block in non-loaded chunk");
             return;
         };
         blocks.set(local, block);

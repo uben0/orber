@@ -1,13 +1,13 @@
 use crate::{
     CHUNK_WIDTH,
     array_queue::ArrayVecExt,
-    chunks::{Chunk, Loader, local_to_global},
+    chunks::{Chunk, Loader, assert_is_local, local_to_global},
     terrain::TerrainDescriptor,
 };
 use arrayvec::ArrayVec;
 use bevy::{math::Vec3Swizzles, platform::collections::HashMap, prelude::*};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Block {
     Air,
     Stone,
@@ -24,7 +24,7 @@ pub struct ChunkBlocks {
     blocks: HashMap<IVec3, Block>,
 }
 
-const MAX_CHUNK_GEN_PER_FRAME: usize = 4;
+const MAX_CHUNK_GEN_PER_FRAME: usize = 2;
 
 pub fn chunk_generation(
     chunks: Query<(Entity, &Chunk), Without<ChunkBlocks>>,
@@ -61,7 +61,6 @@ impl ChunkBlocks {
                 let global = local_to_global(chunk, local);
 
                 let terrain = TerrainDescriptor::at(global.xz());
-                // let elevation = (simplex_noise_2d(global.xz().as_vec2() / 20.0) * 5.0) as i32;
                 for y in 0..CHUNK_WIDTH {
                     let local = IVec3 { x, y, z };
                     let global = local_to_global(chunk, local);
@@ -77,6 +76,7 @@ impl ChunkBlocks {
                 }
             }
         }
+        blocks.select_best_default();
         blocks
     }
     pub fn get(&self, local: IVec3) -> Block {
@@ -88,6 +88,49 @@ impl ChunkBlocks {
         } else {
             self.blocks.insert(local, block);
         }
+    }
+    pub fn select_best_default(&mut self) {
+        let abundant = self.most_abundant();
+        self.set_default(abundant);
+    }
+    pub fn set_default(&mut self, new_default: Block) {
+        if new_default == self.default {
+            return;
+        }
+        for x in 0..CHUNK_WIDTH {
+            for y in 0..CHUNK_WIDTH {
+                for z in 0..CHUNK_WIDTH {
+                    let local = IVec3 { x, y, z };
+                    match self.blocks.get(&local) {
+                        Some(&block) => {
+                            if block == new_default {
+                                self.blocks.remove(&local);
+                            }
+                        }
+                        None => {
+                            self.blocks.insert(local, self.default);
+                        }
+                    }
+                }
+            }
+        }
+        self.default = new_default;
+    }
+    pub fn assert_consistency(&self) {
+        for (&local, &block) in &self.blocks {
+            assert_is_local(local);
+            assert_ne!(block, self.default);
+        }
+    }
+    fn most_abundant(&self) -> Block {
+        let mut counts = HashMap::new();
+        let default_count = CHUNK_WIDTH.pow(3) - self.blocks.len() as i32;
+        counts.insert(self.default, default_count);
+        for (_, &block) in &self.blocks {
+            *counts.entry(block).or_insert(0) += 1;
+        }
+        let (&block, _) = counts.iter().max_by_key(|t| t.1).unwrap();
+        block
     }
 }
 
