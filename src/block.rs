@@ -1,4 +1,4 @@
-use crate::spacial::Sides;
+use crate::spacial::{Sides, Sign};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Block {
@@ -27,18 +27,26 @@ impl Block {
             Block::Stone | Block::Sand | Block::Grass => true,
         }
     }
-    pub const fn textures(self) -> Option<Sides<u32>> {
+    pub const fn textures(self) -> Option<Sides<([Sign; 3], u32)>> {
+        const PPP: [Sign; 3] = [Sign::Pos, Sign::Pos, Sign::Pos];
+        const PPN: [Sign; 3] = [Sign::Pos, Sign::Pos, Sign::Neg];
+        const PNP: [Sign; 3] = [Sign::Pos, Sign::Neg, Sign::Pos];
+        const PNN: [Sign; 3] = [Sign::Pos, Sign::Neg, Sign::Neg];
+        const NPP: [Sign; 3] = [Sign::Neg, Sign::Pos, Sign::Pos];
+        const NPN: [Sign; 3] = [Sign::Neg, Sign::Pos, Sign::Neg];
+        const NNP: [Sign; 3] = [Sign::Neg, Sign::Neg, Sign::Pos];
+        const NNN: [Sign; 3] = [Sign::Neg, Sign::Neg, Sign::Neg];
         match self {
             Block::Air => None,
-            Block::Stone => Some(Sides::all(TEXTURE_STONE)),
-            Block::Sand => Some(Sides::all(TEXTURE_SAND)),
+            Block::Stone => Some(Sides::all((PPP, TEXTURE_STONE))),
+            Block::Sand => Some(Sides::all((PPP, TEXTURE_SAND))),
             Block::Grass => Some(Sides {
-                x_pos: TEXTURE_GRASS_SIDE,
-                x_neg: TEXTURE_GRASS_SIDE,
-                y_pos: TEXTURE_GRASS,
-                y_neg: TEXTURE_DIRT,
-                z_pos: TEXTURE_GRASS_SIDE,
-                z_neg: TEXTURE_GRASS_SIDE,
+                x_pos: (NNP, TEXTURE_GRASS_SIDE),
+                x_neg: (PPP, TEXTURE_GRASS_SIDE),
+                y_pos: (PPP, TEXTURE_GRASS),
+                y_neg: (PPP, TEXTURE_DIRT),
+                z_pos: (PPP, TEXTURE_GRASS_SIDE),
+                z_neg: (NNP, TEXTURE_GRASS_SIDE),
             }),
         }
     }

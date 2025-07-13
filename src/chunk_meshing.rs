@@ -3,7 +3,7 @@ use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, local_to_global};
-use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Vec3Ext};
+use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Sign, Vec3Ext};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
@@ -128,7 +128,7 @@ fn make_cube_mesh(
     texture_uvs: &mut Vec<[f32; 2]>,
     texture_indices: &mut Vec<u32>,
     indices: &mut Vec<u32>,
-    textures: Sides<u32>,
+    textures: Sides<([Sign; 3], u32)>,
     visible: Sides<bool>,
 ) {
     for side in Side::ALL {
@@ -136,8 +136,21 @@ fn make_cube_mesh(
             let index = positions.len() as u32;
             positions.extend(side.quad().map(|v| v.zips(parent, |l, r| l + r)));
             normals.extend([side.normal(); 4]);
-            texture_uvs.extend(QUAD_UV);
-            texture_indices.extend([textures[side]; 4]);
+            let flip_logit = |logit: f32, sign| match sign {
+                Sign::Pos => 0.0 + logit,
+                Sign::Neg => 1.0 - logit,
+            };
+            let swap_pair = |[lhs, rhs]: [f32; 2], sign| match sign {
+                Sign::Pos => [lhs, rhs],
+                Sign::Neg => [rhs, lhs],
+            };
+            let ([uv_swap, u_flip, v_flip], texture_index) = textures[side];
+            texture_uvs.extend(
+                QUAD_UV
+                    .map(|uv| swap_pair(uv, uv_swap))
+                    .map(|[u, v]| [flip_logit(u, u_flip), flip_logit(v, v_flip)]),
+            );
+            texture_indices.extend([texture_index; 4]);
             indices.extend(QUAD_INDICES.map(|i| i + index));
         }
     }
