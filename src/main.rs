@@ -117,6 +117,7 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             (Text(default()), font.clone()),
             (Text(default()), font.clone()),
             (Text(default()), font.clone()),
+            (Text(default()), font.clone()),
         ],
     ));
 }
@@ -131,21 +132,34 @@ fn consistency_check(blocks: Query<&ChunkBlocks>) {
 #[derive(Component)]
 struct InspectUi;
 
+macro_rules! text {
+    ($text:expr, $fmt:literal $(, $arg:expr)* $(,)?) => {
+        let text = &mut $text.0;
+        text.clear();
+        write!(text, $fmt $(, $arg)*).unwrap();
+    };
+}
+
 fn inspect_ui(
     mut texts: Query<&mut Text>,
     root: Single<(Entity, &Children), With<InspectUi>>,
     player: Single<&Transform, With<Player>>,
+    time: Res<Time>,
+    mut fps: Local<f32>,
 ) {
     let (_, children) = root.into_inner();
 
+    *fps = 0.9 * *fps + 0.1 * (1.0 / time.delta_secs().max(0.001));
+    let mut fps_text = texts.get_mut(children[0]).unwrap();
+    text!(fps_text, "fps: {:>4.1}", *fps);
+
     for (axis, child, value) in [
-        ("x", 0, player.translation.x),
-        ("y", 1, player.translation.y),
-        ("z", 2, player.translation.z),
+        ("x", 1, player.translation.x),
+        ("y", 2, player.translation.y),
+        ("z", 3, player.translation.z),
     ] {
-        let text = &mut texts.get_mut(children[child]).unwrap().0;
-        text.clear();
-        write!(text, "{}: {:>+8.3}", axis, value).unwrap();
+        let mut text = texts.get_mut(children[child]).unwrap();
+        text!(text, "{}: {:>+8.3}", axis, value);
     }
 }
 
