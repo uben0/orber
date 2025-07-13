@@ -61,6 +61,8 @@ impl ChunkBlocks {
                         } else {
                             Block::Sand
                         }
+                    } else if global.y < 0 {
+                        Block::Water
                     } else {
                         Block::Air
                     };
