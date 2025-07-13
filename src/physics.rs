@@ -1,9 +1,8 @@
-use crate::{
-    chunk_blocks::{Block, ChunkBlocks},
-    chunks::ChunksIndex,
-    ray_travel::RayTraveler,
-    spacial::{Side, Sign, Vec3Ext},
-};
+use crate::block::Block;
+use crate::chunk_blocks::ChunkBlocks;
+use crate::chunks::ChunksIndex;
+use crate::ray_travel::RayTraveler;
+use crate::spacial::{Side, Sign, Vec3Ext};
 use bevy::prelude::*;
 
 #[derive(SystemSet, Clone, PartialEq, Eq, Debug, Hash)]

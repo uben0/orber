@@ -1,12 +1,11 @@
-use crate::{
-    atlas_material::AtlasMaterial,
-    axis_overlay::AxisOverlayPlugin,
-    chunk_blocks::{Block, ChunkBlocks, chunk_generation},
-    chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup},
-    chunks::{Loader, Modify, chunk_indexer, chunks_setup},
-    physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity},
-    pointed_block::{BlockPointer, BlockPointingPlugin, Pointing},
-};
+use crate::atlas_material::AtlasMaterial;
+use crate::axis_overlay::AxisOverlayPlugin;
+use crate::block::Block;
+use crate::chunk_blocks::{ChunkBlocks, chunk_generation};
+use crate::chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup};
+use crate::chunks::{Loader, Modify, chunk_indexer, chunks_setup};
+use crate::physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity};
+use crate::pointed_block::{BlockPointer, BlockPointingPlugin, Pointing};
 use bevy::{
     input::{common_conditions::input_just_pressed, mouse::MouseMotion},
     prelude::*,
@@ -19,6 +18,7 @@ use std::fmt::Write;
 mod array_queue;
 mod atlas_material;
 mod axis_overlay;
+mod block;
 mod chunk_blocks;
 mod chunk_meshing;
 mod chunks;

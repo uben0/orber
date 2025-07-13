@@ -1,18 +1,10 @@
-use crate::{
-    CHUNK_WIDTH,
-    array_queue::ArrayVecExt,
-    chunks::{Chunk, Loader, assert_is_local, local_to_global},
-    terrain::TerrainDescriptor,
-};
+use crate::CHUNK_WIDTH;
+use crate::array_queue::ArrayVecExt;
+use crate::block::Block;
+use crate::chunks::{Chunk, Loader, assert_is_local, local_to_global};
+use crate::terrain::TerrainDescriptor;
 use arrayvec::ArrayVec;
 use bevy::{math::Vec3Swizzles, platform::collections::HashMap, prelude::*};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Block {
-    Air,
-    Stone,
-    Sand,
-}
 
 #[derive(Component)]
 pub struct ChunkBlocks {
@@ -127,26 +119,5 @@ impl ChunkBlocks {
         }
         let (&block, _) = counts.iter().max_by_key(|t| t.1).unwrap();
         block
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Oclusion {
-    None,
-    Full,
-}
-
-impl Block {
-    pub const fn oclusion(self) -> Oclusion {
-        match self {
-            Block::Air => Oclusion::None,
-            Block::Stone | Block::Sand => Oclusion::Full,
-        }
-    }
-    pub const fn collides(self) -> bool {
-        match self {
-            Block::Air => false,
-            Block::Stone | Block::Sand => true,
-        }
     }
 }

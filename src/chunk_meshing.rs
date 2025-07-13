@@ -1,6 +1,7 @@
 use crate::CHUNK_WIDTH;
 use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
-use crate::chunk_blocks::{Block, ChunkBlocks, Oclusion};
+use crate::block::{Block, Oclusion};
+use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
 use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Vec3Ext};
 use bevy::prelude::*;

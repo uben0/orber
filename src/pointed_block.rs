@@ -1,9 +1,8 @@
-use crate::{
-    chunk_blocks::{Block, ChunkBlocks, Oclusion},
-    chunks::ChunksIndex,
-    ray_travel::RayTraveler,
-    spacial::Side,
-};
+use crate::block::{Block, Oclusion};
+use crate::chunk_blocks::ChunkBlocks;
+use crate::chunks::ChunksIndex;
+use crate::ray_travel::RayTraveler;
+use crate::spacial::Side;
 use bevy::prelude::*;
 
 pub struct BlockPointingPlugin;

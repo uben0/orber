@@ -1,4 +1,5 @@
-use crate::chunk_blocks::{Block, ChunkBlocks, Oclusion};
+use crate::block::{Block, Oclusion};
+use crate::chunk_blocks::ChunkBlocks;
 use crate::chunk_meshing::NeedsRemeshing;
 use crate::spacial::{Side, Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
