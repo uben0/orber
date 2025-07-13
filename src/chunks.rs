@@ -25,8 +25,6 @@ pub struct Loader {
 
 #[derive(Event, Debug)]
 pub enum Modify {
-    // TODO: now that air is a block, we only need place
-    // Remove { global: IVec3 },
     Place { global: IVec3, block: Block },
 }
 
@@ -118,29 +116,8 @@ impl std::ops::Add<IVec3> for Chunk {
     }
 }
 
-// TODO: reduce complexity
-pub trait QueryFor<'a, T>: FnOnce(Entity) -> Result<&'a T, QueryEntityError>
-where
-    T: 'static,
-{
-}
-impl<'a, T, U> QueryFor<'a, T> for U
-where
-    U: FnOnce(Entity) -> Result<&'a T, QueryEntityError>,
-    T: 'static,
-{
-}
-pub trait QueryForMut<'a, T>: FnOnce(Entity) -> Result<Mut<'a, T>, QueryEntityError>
-where
-    T: 'static,
-{
-}
-impl<'a, T, U> QueryForMut<'a, T> for U
-where
-    U: FnOnce(Entity) -> Result<Mut<'a, T>, QueryEntityError>,
-    T: 'static,
-{
-}
+type Queried<'a, T> = Result<&'a T, QueryEntityError>;
+type QueriedMut<'a, T> = Result<Mut<'a, T>, QueryEntityError>;
 
 impl ChunksIndex {
     pub fn new() -> Self {
@@ -155,7 +132,7 @@ impl ChunksIndex {
 
     pub fn get_block<'a>(
         &self,
-        blocks: impl QueryFor<'a, ChunkBlocks>,
+        blocks: impl FnOnce(Entity) -> Queried<'a, ChunkBlocks>,
         global: IVec3,
     ) -> Option<Block> {
         let (chunk, local) = self.global_to_local(global)?;
@@ -164,7 +141,7 @@ impl ChunksIndex {
 
     pub fn set_block<'a>(
         &self,
-        blocks: impl QueryForMut<'a, ChunkBlocks>,
+        blocks: impl FnOnce(Entity) -> QueriedMut<'a, ChunkBlocks>,
         global: IVec3,
         block: Block,
     ) {

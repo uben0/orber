@@ -14,10 +14,6 @@ pub enum Block {
     Sand,
 }
 
-// TODO: make the most aboundant block the default
-//       in the sky, it is air
-//       in the ground it is stone
-//       in the ocean it is water
 #[derive(Component)]
 pub struct ChunkBlocks {
     default: Block,
