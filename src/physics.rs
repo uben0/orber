@@ -1,5 +1,5 @@
 use crate::{
-    chunk_blocks::ChunkBlocks,
+    chunk_blocks::{Block, ChunkBlocks},
     chunks::ChunksIndex,
     ray_travel::RayTraveler,
     spacial::{Side, Sign, Vec3Ext},
@@ -88,7 +88,11 @@ fn apply_velocity(
                         let selected = IVec3::compose(axis, Sign::Pos, step.voxel[axis], [u, v]);
 
                         // if a block is present, a collision occur
-                        if index.get_block(|e| blocks.get(e), selected) == Some(true) {
+                        if index
+                            .get_block(|e| blocks.get(e), selected)
+                            .unwrap_or(Block::Air)
+                            .collides()
+                        {
                             // we correct the vector component to stop at the collision
                             shift[axis] *= step.time / length;
                             // we stop slightly before the collision
@@ -116,10 +120,13 @@ fn apply_velocity(
             commands.entity(entity).remove::<Grounded>();
         }
 
-        if index.get_block(
-            |e| blocks.get(e),
-            (corner_active + shift).floor().as_ivec3(),
-        ) == Some(true)
+        if index
+            .get_block(
+                |e| blocks.get(e),
+                (corner_active + shift).floor().as_ivec3(),
+            )
+            .unwrap_or(Block::Air)
+            .collides()
         {
             println!("collider tunneling");
             println!(" - pos    {:.10}", corner_active);

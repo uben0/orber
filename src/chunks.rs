@@ -1,4 +1,4 @@
-use crate::chunk_blocks::{Block, ChunkBlocks};
+use crate::chunk_blocks::{Block, ChunkBlocks, Oclusion};
 use crate::chunk_meshing::NeedsRemeshing;
 use crate::spacial::{Side, Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
@@ -56,7 +56,12 @@ fn observe_chunk_modify(
                 if neighbour == chunk {
                     continue;
                 }
-                if let Some(true) = index.get_block(|e| blocks.get(e), global) {
+                if index
+                    .get_block(|e| blocks.get(e), global)
+                    .unwrap_or(Block::Air)
+                    .oclusion()
+                    != Oclusion::None
+                {
                     commands.entity(neighbour).insert(NeedsRemeshing);
                 }
             }
@@ -75,7 +80,12 @@ fn observe_chunk_modify(
                 if neighbour == chunk {
                     continue;
                 }
-                if let Some(true) = index.get_block(|e| blocks.get(e), global) {
+                if index
+                    .get_block(|e| blocks.get(e), global)
+                    .unwrap_or(Block::Air)
+                    .oclusion()
+                    != Oclusion::None
+                {
                     commands.entity(neighbour).insert(NeedsRemeshing);
                 }
             }
@@ -108,6 +118,7 @@ impl std::ops::Add<IVec3> for Chunk {
     }
 }
 
+// TODO: reduce complexity
 pub trait QueryFor<'a, T>: FnOnce(Entity) -> Result<&'a T, QueryEntityError>
 where
     T: 'static,
@@ -146,7 +157,7 @@ impl ChunksIndex {
         &self,
         blocks: impl QueryFor<'a, ChunkBlocks>,
         global: IVec3,
-    ) -> Option<bool> {
+    ) -> Option<Block> {
         let (chunk, local) = self.global_to_local(global)?;
         Some(blocks(chunk).ok()?.get(local))
     }

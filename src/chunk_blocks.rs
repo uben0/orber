@@ -20,6 +20,7 @@ pub enum Block {
 //       in the ocean it is water
 #[derive(Component)]
 pub struct ChunkBlocks {
+    pub default: Block,
     pub blocks: HashMap<IVec3, Block>,
 }
 
@@ -67,9 +68,33 @@ impl ChunkBlocks {
                 }
             }
         }
-        Self { blocks }
+        Self {
+            blocks,
+            default: Block::Air,
+        }
     }
-    pub fn get(&self, local: IVec3) -> bool {
-        self.blocks.contains_key(&local)
+    pub fn get(&self, local: IVec3) -> Block {
+        self.blocks.get(&local).copied().unwrap_or(self.default)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Oclusion {
+    None,
+    Full,
+}
+
+impl Block {
+    pub const fn oclusion(self) -> Oclusion {
+        match self {
+            Block::Air => Oclusion::None,
+            Block::Stone | Block::Sand => Oclusion::Full,
+        }
+    }
+    pub const fn collides(self) -> bool {
+        match self {
+            Block::Air => false,
+            Block::Stone | Block::Sand => true,
+        }
     }
 }

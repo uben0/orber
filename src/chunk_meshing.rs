@@ -1,5 +1,6 @@
+use crate::CHUNK_WIDTH;
 use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
-use crate::chunk_blocks::ChunkBlocks;
+use crate::chunk_blocks::{Block, ChunkBlocks, Oclusion};
 use crate::chunks::{Chunk, ChunksIndex, Loader, assert_is_local, local_to_global};
 use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Vec3Ext};
 use bevy::prelude::*;
@@ -79,23 +80,36 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
     let mut texture_uvs = Vec::new();
     let mut texture_indices = Vec::new();
     let mut indices = Vec::new();
-    let entity = index.get(chunk).unwrap();
-    for (&local, _) in &blocks.get(entity).unwrap().blocks {
-        let global = local_to_global(chunk, local);
-        assert_is_local(local);
-        make_cube_mesh(
-            local.as_vec3(),
-            &mut positions,
-            &mut normals,
-            &mut texture_uvs,
-            &mut texture_indices,
-            &mut indices,
-            Sides::NORMAL.map(|v: IVec3| {
-                !index
-                    .get_block(|e| blocks.get(e), global + v)
-                    .unwrap_or(false)
-            }),
-        );
+    // let entity = index.get(chunk).unwrap();
+    // let chunk_blocks = blocks.get(entity).unwrap();
+
+    for x in 0..CHUNK_WIDTH {
+        for y in 0..CHUNK_WIDTH {
+            for z in 0..CHUNK_WIDTH {
+                let local = IVec3 { x, y, z };
+                let global = local_to_global(chunk, local);
+
+                let block = index.get_block(|e| blocks.get(e), global).unwrap();
+
+                if block.oclusion() == Oclusion::Full {
+                    make_cube_mesh(
+                        local.as_vec3(),
+                        &mut positions,
+                        &mut normals,
+                        &mut texture_uvs,
+                        &mut texture_indices,
+                        &mut indices,
+                        Sides::NORMAL.map(|v: IVec3| {
+                            index
+                                .get_block(|e| blocks.get(e), global + v)
+                                .unwrap_or(Block::Air)
+                                .oclusion()
+                                != Oclusion::Full
+                        }),
+                    );
+                }
+            }
+        }
     }
     Mesh::new(TriangleList, default())
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)

@@ -1,5 +1,8 @@
 use crate::{
-    chunk_blocks::ChunkBlocks, chunks::ChunksIndex, ray_travel::RayTraveler, spacial::Side,
+    chunk_blocks::{Block, ChunkBlocks, Oclusion},
+    chunks::ChunksIndex,
+    ray_travel::RayTraveler,
+    spacial::Side,
 };
 use bevy::prelude::*;
 
@@ -60,7 +63,13 @@ fn pointed_block(
             transform.rotation * Dir3::NEG_Z,
             pointer.range,
         )
-        .find(|step| index.get_block(|e| blocks.get(e), step.voxel) == Some(true))
+        .find(|step| {
+            index
+                .get_block(|e| blocks.get(e), step.voxel)
+                .unwrap_or(Block::Air)
+                .oclusion()
+                != Oclusion::None
+        })
         .map(|found| Pointing {
             global: found.voxel,
             side: found.side,
