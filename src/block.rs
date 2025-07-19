@@ -18,8 +18,8 @@ pub enum Oclusion {
 impl Block {
     pub const fn oclusion(self) -> Oclusion {
         match self {
-            Block::Air => Oclusion::None,
-            Block::Stone | Block::Sand | Block::Grass | Block::Water => Oclusion::Full,
+            Block::Air | Block::Water => Oclusion::None,
+            Block::Stone | Block::Sand | Block::Grass => Oclusion::Full,
         }
     }
     pub const fn collides(self) -> bool {

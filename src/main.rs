@@ -91,7 +91,7 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             size: vec3(0.8, 1.9, 0.8),
             anchor: vec3(0.4, 1.7, 0.4),
         },
-        Loader::new(256.0, 16.0),
+        Loader::new(64.0, 16.0),
         Transform::from_xyz(5.0, 8.0, 5.0),
         Camera3d::default(),
         Projection::Perspective(PerspectiveProjection {

@@ -3,12 +3,18 @@ use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, local_to_global};
-use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Sign, Vec3Ext};
+use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Sign};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
 #[derive(Component)]
 pub struct NeedsRemeshing;
+
+#[derive(Component, Clone, Copy)]
+pub struct HasMesh {
+    regular: Entity,
+    water: Entity,
+}
 
 #[derive(Resource)]
 pub struct MeshAssets {
@@ -17,7 +23,7 @@ pub struct MeshAssets {
 
 type Candidate = (
     With<ChunkBlocks>,
-    Or<(Without<Mesh3d>, With<NeedsRemeshing>)>,
+    Or<(Without<HasMesh>, With<NeedsRemeshing>)>,
 );
 
 pub fn chunks_mesh_setup(
@@ -37,21 +43,46 @@ pub fn chunks_mesh_setup(
 pub fn chunk_meshing(
     index: Res<ChunksIndex>,
     blocks: Query<&ChunkBlocks>,
-    chunks: Query<(Entity, &Chunk), Candidate>,
+    chunks: Query<(Entity, &Chunk, Option<&HasMesh>), Candidate>,
     loaders: Query<(&Transform, &Loader)>,
     assets: Res<MeshAssets>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    for (entity, &chunk) in &chunks {
+    for (entity, &chunk, has_mesh) in &chunks {
         if loaders.iter().any(|(transform, &loader)| {
             loader.inside_zone(transform.translation, chunk, Loader::ZONE_MESH)
         }) {
             let has_blocks = |n| index.get(n).map(|e| blocks.contains(e)).unwrap_or(false);
             if chunk.neighbours().list().all(has_blocks) {
-                let mesh = chunk_build_mesh(&index, blocks, chunk);
-                commands.entity(entity).remove::<NeedsRemeshing>().insert((
-                    Mesh3d(meshes.add(mesh)),
+                let has_mesh = if let Some(&has_mesh) = has_mesh {
+                    has_mesh
+                } else {
+                    let regular = commands
+                        .spawn((
+                            Name::new("ChunkMeshRegular"),
+                            Transform::default(),
+                            ChildOf(entity),
+                        ))
+                        .id();
+                    let water = commands
+                        .spawn((
+                            Name::new("ChunkMeshWater"),
+                            Transform::default(),
+                            ChildOf(entity),
+                        ))
+                        .id();
+                    commands.entity(entity).insert(HasMesh { regular, water });
+                    HasMesh { regular, water }
+                };
+                let (regular, water) = chunk_build_mesh(&index, blocks, chunk);
+                commands.entity(entity).remove::<NeedsRemeshing>();
+                commands.entity(has_mesh.regular).insert((
+                    Mesh3d(meshes.add(regular)),
+                    MeshMaterial3d(assets.material.clone()),
+                ));
+                commands.entity(has_mesh.water).insert((
+                    Mesh3d(meshes.add(water)),
                     MeshMaterial3d(assets.material.clone()),
                 ));
             }
@@ -60,27 +91,38 @@ pub fn chunk_meshing(
 }
 
 pub fn chunk_demeshing(
-    chunks: Query<(Entity, &Chunk), Or<(With<Mesh3d>, With<NeedsRemeshing>)>>,
+    chunks: Query<(Entity, &Chunk, Option<&HasMesh>), Or<(With<HasMesh>, With<NeedsRemeshing>)>>,
     loaders: Query<(&Transform, &Loader)>,
     mut commands: Commands,
 ) {
-    for (entity, &chunk) in chunks {
+    for (entity, &chunk, has_mesh) in chunks {
         if loaders.iter().all(|(transform, &loader)| {
             loader.outside_zone(transform.translation, chunk, Loader::ZONE_MESH)
         }) {
-            commands
-                .entity(entity)
-                .remove::<(NeedsRemeshing, Mesh3d, MeshMaterial3d<AtlasMaterial>)>();
+            commands.entity(entity).remove::<NeedsRemeshing>();
+            if let Some(has_mesh) = has_mesh {
+                commands.entity(has_mesh.regular).try_despawn();
+            }
         }
     }
 }
 
-pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk: Chunk) -> Mesh {
-    let mut positions = Vec::new();
-    let mut normals = Vec::new();
-    let mut texture_uvs = Vec::new();
-    let mut texture_indices = Vec::new();
-    let mut indices = Vec::new();
+pub fn chunk_build_mesh(
+    index: &ChunksIndex,
+    blocks: Query<&ChunkBlocks>,
+    chunk: Chunk,
+) -> (Mesh, Mesh) {
+    let mut regular_positions: Vec<[f32; 3]> = Vec::new();
+    let mut regular_normals: Vec<[f32; 3]> = Vec::new();
+    let mut regular_texture_uvs = Vec::new();
+    let mut regular_texture_indices = Vec::new();
+    let mut regular_indices = Vec::new();
+
+    let mut water_positions: Vec<[f32; 3]> = Vec::new();
+    let mut water_normals: Vec<[f32; 3]> = Vec::new();
+    let mut water_texture_uvs = Vec::new();
+    let mut water_texture_indices = Vec::new();
+    let mut water_indices = Vec::new();
     // let entity = index.get(chunk).unwrap();
     // let chunk_blocks = blocks.get(entity).unwrap();
 
@@ -89,78 +131,135 @@ pub fn chunk_build_mesh(index: &ChunksIndex, blocks: Query<&ChunkBlocks>, chunk:
             for z in 0..CHUNK_WIDTH {
                 let local = IVec3 { x, y, z };
                 let global = local_to_global(chunk, local);
-
                 let block = index.get_block(|e| blocks.get(e), global).unwrap();
 
-                if let Some(textures) = block.textures() {
-                    make_cube_mesh(
-                        local.as_vec3(),
-                        &mut positions,
-                        &mut normals,
-                        &mut texture_uvs,
-                        &mut texture_indices,
-                        &mut indices,
-                        textures,
-                        Sides::NORMAL.map(|v: IVec3| {
-                            index
-                                .get_block(|e| blocks.get(e), global + v)
-                                .unwrap_or(Block::Air)
-                                .oclusion()
-                                != Oclusion::Full
-                        }),
-                    );
-                }
+                make_cube_mesh2(
+                    local.as_vec3(),
+                    block,
+                    Sides::NORMAL.map(|v: IVec3| {
+                        index
+                            .get_block(|e| blocks.get(e), global + v)
+                            .unwrap_or_else(|| {
+                                warn!(
+                                    "trying to fetch block from non-generated chunk during meshing"
+                                );
+                                Block::Air
+                            })
+                    }),
+                    |quad| match quad {
+                        Quad::Regular {
+                            positions,
+                            normal,
+                            texture_uv,
+                            texture_index,
+                        } => {
+                            let index_shift = regular_positions.len();
+                            for position in positions {
+                                regular_positions.push(position.into());
+                                regular_normals.push(normal.into());
+                            }
+                            for texture_uv in texture_uv {
+                                regular_texture_uvs.push(texture_uv);
+                                regular_texture_indices.push(texture_index)
+                            }
+                            for index in QUAD_INDICES {
+                                regular_indices.push(index + index_shift as u32);
+                            }
+                        }
+                        Quad::Water {
+                            positions,
+                            normal,
+                            texture_uv,
+                            texture_index,
+                        } => {
+                            let index_shift = water_positions.len();
+                            for position in positions {
+                                water_positions.push(position.into());
+                                water_normals.push(normal.into());
+                            }
+                            for texture_uv in texture_uv {
+                                water_texture_uvs.push(texture_uv);
+                                water_texture_indices.push(texture_index)
+                            }
+                            for index in QUAD_INDICES {
+                                water_indices.push(index + index_shift as u32);
+                            }
+                        }
+                    },
+                );
             }
         }
     }
-    Mesh::new(TriangleList, default())
-        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, texture_uvs)
-        .with_inserted_attribute(ATTRIBUTE_TEXTURE_INDEX, texture_indices)
-        .with_inserted_indices(Indices::U32(indices))
+    (
+        Mesh::new(TriangleList, default())
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, regular_positions)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, regular_normals)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, regular_texture_uvs)
+            .with_inserted_attribute(ATTRIBUTE_TEXTURE_INDEX, regular_texture_indices)
+            .with_inserted_indices(Indices::U32(regular_indices)),
+        Mesh::new(TriangleList, default())
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, water_positions)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, water_normals)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, water_texture_uvs)
+            .with_inserted_attribute(ATTRIBUTE_TEXTURE_INDEX, water_texture_indices)
+            .with_inserted_indices(Indices::U32(water_indices)),
+    )
 }
 
-fn make_cube_mesh(
-    parent: Vec3,
-    positions: &mut Vec<[f32; 3]>,
-    normals: &mut Vec<[f32; 3]>,
-    texture_uvs: &mut Vec<[f32; 2]>,
-    texture_indices: &mut Vec<u32>,
-    indices: &mut Vec<u32>,
-    textures: Sides<([Sign; 3], u32)>,
-    visible: Sides<bool>,
-) {
+enum Quad {
+    Regular {
+        positions: [Vec3; 4],
+        normal: Vec3,
+        texture_uv: [[f32; 2]; 4],
+        texture_index: u32,
+    },
+    Water {
+        positions: [Vec3; 4],
+        normal: Vec3,
+        texture_uv: [[f32; 2]; 4],
+        texture_index: u32,
+    },
+}
+
+fn make_cube_mesh2(position: Vec3, block: Block, sides: Sides<Block>, mut write: impl FnMut(Quad)) {
+    let Some(textures) = block.textures() else {
+        return;
+    };
     for side in Side::ALL {
-        if visible[side] {
-            let index = positions.len() as u32;
-            let quad = side.quad();
-            let ([uv_swap, u_flip, v_flip], texture_index) = textures[side];
-
-            for i in 0..4 {
-                positions.push(quad[i].zips(parent, |l, r| l + r));
-                normals.push(side.normal());
-
-                let [u, v] = QUAD_UV[i];
-                let [u, v] = match uv_swap {
-                    Sign::Pos => [u, v],
-                    Sign::Neg => [v, u],
-                };
-                let u = match u_flip {
-                    Sign::Pos => 0.0 + u,
-                    Sign::Neg => 1.0 - u,
-                };
-                let v = match v_flip {
-                    Sign::Pos => 0.0 + v,
-                    Sign::Neg => 1.0 - v,
-                };
-                texture_uvs.push([u, v]);
-                texture_indices.push(texture_index);
-            }
-
-            for i in QUAD_INDICES {
-                indices.push(i + index);
-            }
+        if sides[side].oclusion() == Oclusion::Full || sides[side] == block {
+            continue;
         }
+        let ([uv_swap, u_flip, v_flip], texture_index) = textures[side];
+        let texture_uv = QUAD_UV.map(|[u, v]| {
+            let [u, v] = match uv_swap {
+                Sign::Pos => [u, v],
+                Sign::Neg => [v, u],
+            };
+            let u = match u_flip {
+                Sign::Pos => 0.0 + u,
+                Sign::Neg => 1.0 - u,
+            };
+            let v = match v_flip {
+                Sign::Pos => 0.0 + v,
+                Sign::Neg => 1.0 - v,
+            };
+            [u, v]
+        });
+        let quad = if block == Block::Water {
+            Quad::Water {
+                positions: side.quad().map(|v: Vec3| position + v),
+                normal: side.normal(),
+                texture_uv,
+                texture_index,
+            }
+        } else {
+            Quad::Regular {
+                positions: side.quad().map(|v: Vec3| position + v),
+                normal: side.normal(),
+                texture_uv,
+                texture_index,
+            }
+        };
+        write(quad);
     }
 }

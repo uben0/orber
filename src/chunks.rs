@@ -13,7 +13,7 @@ pub struct ChunksIndex {
     index: HashMap<IVec3, Entity>,
 }
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, Debug)]
 pub struct Chunk {
     pub chunk: IVec3,
 }
@@ -197,7 +197,9 @@ pub fn chunk_indexer(
                     if index.get(chunk).is_none() {
                         let global = local_to_global(chunk, IVec3::ZERO).as_vec3();
                         let transform = Transform::from_translation(global);
-                        let entity = commands.spawn((chunk, transform)).id();
+                        let entity = commands
+                            .spawn((chunk, transform, Visibility::default()))
+                            .id();
                         index.index.insert(chunk.chunk, entity);
                     }
                 }

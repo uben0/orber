@@ -172,17 +172,29 @@ impl Side {
         }
     }
     /// A quadruple of points forming a clockwise square
-    pub fn quad(self) -> [[f32; 3]; 4] {
+    pub fn quad<T>(self) -> [T; 4]
+    where
+        T: Vec3Ext<f32>,
+    {
         let sign = self.sign();
         let axis = self.axis();
         let depth = match sign {
             Sign::Pos => 1.0,
             Sign::Neg => 0.0,
         };
-        QUAD_UV.map(|uv| Vec3Ext::compose(axis, sign, depth, uv))
+        QUAD_UV.map(|uv| T::compose(axis, sign, depth, uv))
     }
-    pub fn normal(self) -> [f32; 3] {
-        Sides::<Vec3>::NORMAL[self].into()
+    pub fn normal<T>(self) -> T
+    where
+        T: Vec3Ext<f32>,
+    {
+        let sign = self.sign();
+        let axis = self.axis();
+        let value = match sign {
+            Sign::Pos => 1.0,
+            Sign::Neg => -1.0,
+        };
+        T::compose(axis, sign, value, [0.0, 0.0])
     }
     pub fn axis(self) -> Axis {
         match self {
