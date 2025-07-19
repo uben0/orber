@@ -149,7 +149,7 @@ fn inspect_ui(
 ) {
     let (_, children) = root.into_inner();
 
-    *fps = 0.9 * *fps + 0.1 * (1.0 / time.delta_secs().max(0.001));
+    *fps = 0.99 * *fps + 0.01 * (1.0 / time.delta_secs().max(0.001));
     let mut fps_text = texts.get_mut(children[0]).unwrap();
     text!(fps_text, "fps: {:>4.1}", *fps);
 
