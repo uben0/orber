@@ -6,6 +6,7 @@ use crate::chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup};
 use crate::chunks::{Loader, Modify, chunk_indexer, chunks_setup};
 use crate::physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity};
 use crate::pointed_block::{BlockPointer, BlockPointingPlugin, Pointing};
+use crate::water_material::WaterMaterial;
 use bevy::{
     input::{common_conditions::input_just_pressed, mouse::MouseMotion},
     prelude::*,
@@ -28,6 +29,7 @@ mod pointed_block;
 mod ray_travel;
 mod spacial;
 mod terrain;
+mod water_material;
 
 const CHUNK_WIDTH: i32 = 32;
 
@@ -43,6 +45,7 @@ fn main() {
             BlockPointingPlugin,
             PhysicsPlugin,
             MaterialPlugin::<AtlasMaterial>::default(),
+            MaterialPlugin::<WaterMaterial>::default(),
         ))
         .add_systems(Startup, (setup, chunks_setup, chunks_mesh_setup))
         .add_systems(

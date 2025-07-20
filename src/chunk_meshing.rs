@@ -4,6 +4,7 @@ use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, local_to_global};
 use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Sign};
+use crate::water_material::WaterMaterial;
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
@@ -18,7 +19,8 @@ pub struct HasMesh {
 
 #[derive(Resource)]
 pub struct MeshAssets {
-    material: Handle<AtlasMaterial>,
+    atlas_material: Handle<AtlasMaterial>,
+    water_material: Handle<WaterMaterial>,
 }
 
 type Candidate = (
@@ -29,10 +31,16 @@ type Candidate = (
 pub fn chunks_mesh_setup(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<AtlasMaterial>>,
+    mut atlas_material: ResMut<Assets<AtlasMaterial>>,
+    mut water_materials: ResMut<Assets<WaterMaterial>>,
 ) {
     commands.insert_resource(MeshAssets {
-        material: materials.add(AtlasMaterial::new(
+        atlas_material: atlas_material.add(AtlasMaterial::new(
+            "assets/textures/blocks.png",
+            16,
+            images.as_mut(),
+        )),
+        water_material: water_materials.add(WaterMaterial::new(
             "assets/textures/blocks.png",
             16,
             images.as_mut(),
@@ -79,11 +87,11 @@ pub fn chunk_meshing(
                 commands.entity(entity).remove::<NeedsRemeshing>();
                 commands.entity(has_mesh.regular).insert((
                     Mesh3d(meshes.add(regular)),
-                    MeshMaterial3d(assets.material.clone()),
+                    MeshMaterial3d(assets.atlas_material.clone()),
                 ));
                 commands.entity(has_mesh.water).insert((
                     Mesh3d(meshes.add(water)),
-                    MeshMaterial3d(assets.material.clone()),
+                    MeshMaterial3d(assets.water_material.clone()),
                 ));
             }
         }
