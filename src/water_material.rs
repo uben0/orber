@@ -45,6 +45,9 @@ impl Material for WaterMaterial {
         descriptor.vertex.buffers = Vec::from([vertex_layout]);
         Ok(())
     }
+    fn alpha_mode(&self) -> AlphaMode {
+        AlphaMode::Blend
+    }
 }
 
 impl WaterMaterial {

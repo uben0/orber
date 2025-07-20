@@ -1,6 +1,6 @@
 #import bevy_pbr::{
     mesh_view_bindings::view,
-    pbr_types::{PbrInput, pbr_input_new},
+    pbr_types::{PbrInput, pbr_input_new, STANDARD_MATERIAL_FLAGS_ALPHA_MODE_BLEND},
     mesh_functions::{get_world_from_local, mesh_position_local_to_clip, mesh_position_local_to_world},
     pbr_functions::{apply_pbr_lighting, calculate_view},
 }
@@ -45,6 +45,7 @@ fn vertex(vertex: VertexIn) -> VertexOut {
 @fragment
 fn fragment(frag: FragIn) -> @location(0) vec4<f32> {
     var pbr_input: PbrInput = pbr_input_new();
+    pbr_input.material.flags = STANDARD_MATERIAL_FLAGS_ALPHA_MODE_BLEND;
     pbr_input.material.base_color = textureSample(my_texture, my_sampler, frag.uv);
     pbr_input.world_position = frag.world_position;
     pbr_input.frag_coord = frag.clip_position;

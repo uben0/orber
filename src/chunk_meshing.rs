@@ -106,9 +106,12 @@ pub fn chunk_demeshing(
         if loaders.iter().all(|(transform, &loader)| {
             loader.outside_zone(transform.translation, chunk, Loader::ZONE_MESH)
         }) {
-            commands.entity(entity).remove::<NeedsRemeshing>();
+            commands
+                .entity(entity)
+                .remove::<(NeedsRemeshing, HasMesh)>();
             if let Some(has_mesh) = has_mesh {
-                commands.entity(has_mesh.regular).try_despawn();
+                commands.entity(has_mesh.regular).despawn();
+                commands.entity(has_mesh.water).despawn();
             }
         }
     }
