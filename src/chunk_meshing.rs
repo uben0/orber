@@ -41,8 +41,7 @@ pub fn chunks_mesh_setup(
             images.as_mut(),
         )),
         water_material: water_materials.add(WaterMaterial::new(
-            "assets/textures/blocks.png",
-            16,
+            "assets/textures/water.png",
             images.as_mut(),
         )),
     });
@@ -168,7 +167,7 @@ pub fn chunk_build_mesh(
                             }
                             for texture_uv in texture_uv {
                                 regular_texture_uvs.push(texture_uv);
-                                regular_texture_indices.push(texture_index)
+                                regular_texture_indices.push(texture_index);
                             }
                             for index in QUAD_INDICES {
                                 regular_indices.push(index + index_shift as u32);
@@ -178,7 +177,6 @@ pub fn chunk_build_mesh(
                             positions,
                             normal,
                             texture_uv,
-                            texture_index,
                         } => {
                             let index_shift = water_positions.len();
                             for position in positions {
@@ -187,7 +185,7 @@ pub fn chunk_build_mesh(
                             }
                             for texture_uv in texture_uv {
                                 water_texture_uvs.push(texture_uv);
-                                water_texture_indices.push(texture_index)
+                                water_texture_indices.push(0u32);
                             }
                             for index in QUAD_INDICES {
                                 water_indices.push(index + index_shift as u32);
@@ -225,49 +223,51 @@ enum Quad {
         positions: [Vec3; 4],
         normal: Vec3,
         texture_uv: [[f32; 2]; 4],
-        texture_index: u32,
     },
 }
 
 fn make_cube_mesh2(position: Vec3, block: Block, sides: Sides<Block>, mut write: impl FnMut(Quad)) {
-    let Some(textures) = block.textures() else {
-        return;
-    };
-    for side in Side::ALL {
-        if sides[side].oclusion() == Oclusion::Full || sides[side] == block {
-            continue;
+    if block == Block::Water {
+        for side in Side::ALL {
+            if sides[side].oclusion() == Oclusion::Full || sides[side] == Block::Water {
+                continue;
+            }
+            write(Quad::Water {
+                positions: side.quad().map(|v: Vec3| position + v),
+                normal: side.normal(),
+                texture_uv: QUAD_UV,
+            });
         }
-        let ([uv_swap, u_flip, v_flip], texture_index) = textures[side];
-        let texture_uv = QUAD_UV.map(|[u, v]| {
-            let [u, v] = match uv_swap {
-                Sign::Pos => [u, v],
-                Sign::Neg => [v, u],
-            };
-            let u = match u_flip {
-                Sign::Pos => 0.0 + u,
-                Sign::Neg => 1.0 - u,
-            };
-            let v = match v_flip {
-                Sign::Pos => 0.0 + v,
-                Sign::Neg => 1.0 - v,
-            };
-            [u, v]
-        });
-        let quad = if block == Block::Water {
-            Quad::Water {
-                positions: side.quad().map(|v: Vec3| position + v),
-                normal: side.normal(),
-                texture_uv,
-                texture_index,
-            }
-        } else {
-            Quad::Regular {
-                positions: side.quad().map(|v: Vec3| position + v),
-                normal: side.normal(),
-                texture_uv,
-                texture_index,
-            }
+    } else {
+        let Some(textures) = block.textures() else {
+            return;
         };
-        write(quad);
+        for side in Side::ALL {
+            if sides[side].oclusion() == Oclusion::Full {
+                continue;
+            }
+            let ([uv_swap, u_flip, v_flip], texture_index) = textures[side];
+            let texture_uv = QUAD_UV.map(|[u, v]| {
+                let [u, v] = match uv_swap {
+                    Sign::Pos => [u, v],
+                    Sign::Neg => [v, u],
+                };
+                let u = match u_flip {
+                    Sign::Pos => 0.0 + u,
+                    Sign::Neg => 1.0 - u,
+                };
+                let v = match v_flip {
+                    Sign::Pos => 0.0 + v,
+                    Sign::Neg => 1.0 - v,
+                };
+                [u, v]
+            });
+            write(Quad::Regular {
+                positions: side.quad().map(|v: Vec3| position + v),
+                normal: side.normal(),
+                texture_uv,
+                texture_index,
+            });
+        }
     }
 }

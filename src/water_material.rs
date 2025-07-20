@@ -15,7 +15,7 @@ use bevy::{
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct WaterMaterial {
-    #[texture(0, dimension = "2d_array")]
+    #[texture(0)]
     #[sampler(1)]
     pub texture: Handle<Image>,
 }
@@ -48,10 +48,10 @@ impl Material for WaterMaterial {
 }
 
 impl WaterMaterial {
-    pub fn new(atlas_path: impl AsRef<Path>, tile_width: u32, images: &mut Assets<Image>) -> Self {
+    pub fn new(atlas_path: impl AsRef<Path>, images: &mut Assets<Image>) -> Self {
         let bytes = std::fs::read(atlas_path).unwrap();
         let is_srgb = true;
-        let mut textures = Image::from_buffer(
+        let textures = Image::from_buffer(
             &bytes,
             ImageType::Format(ImageFormat::Png),
             CompressedImageFormats::NONE,
@@ -60,7 +60,6 @@ impl WaterMaterial {
             RenderAssetUsages::default(),
         )
         .unwrap();
-        textures.reinterpret_stacked_2d_as_array(textures.height() / tile_width);
         Self {
             texture: images.add(textures),
         }
