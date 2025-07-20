@@ -1,4 +1,4 @@
-use bevy::math::{IVec3, Vec3};
+use bevy::math::{IVec2, IVec3, Vec2, Vec3};
 use std::{
     array::IntoIter,
     ops::{Index, IndexMut},
@@ -38,6 +38,76 @@ pub enum AxisSwap {
     YZX,
     ZXY,
     ZYX,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Symetry2 {
+    pub swap_xy: Sign,
+    pub flip_x: Sign,
+    pub flip_y: Sign,
+}
+
+impl Symetry2 {
+    pub const PPP: Self = Self {
+        swap_xy: Sign::Pos,
+        flip_x: Sign::Pos,
+        flip_y: Sign::Pos,
+    };
+    pub const PPN: Self = Self {
+        swap_xy: Sign::Pos,
+        flip_x: Sign::Pos,
+        flip_y: Sign::Neg,
+    };
+    pub const PNP: Self = Self {
+        swap_xy: Sign::Pos,
+        flip_x: Sign::Neg,
+        flip_y: Sign::Pos,
+    };
+    pub const PNN: Self = Self {
+        swap_xy: Sign::Pos,
+        flip_x: Sign::Neg,
+        flip_y: Sign::Neg,
+    };
+    pub const NPP: Self = Self {
+        swap_xy: Sign::Neg,
+        flip_x: Sign::Pos,
+        flip_y: Sign::Pos,
+    };
+    pub const NPN: Self = Self {
+        swap_xy: Sign::Neg,
+        flip_x: Sign::Pos,
+        flip_y: Sign::Neg,
+    };
+    pub const NNP: Self = Self {
+        swap_xy: Sign::Neg,
+        flip_x: Sign::Neg,
+        flip_y: Sign::Pos,
+    };
+    pub const NNN: Self = Self {
+        swap_xy: Sign::Neg,
+        flip_x: Sign::Neg,
+        flip_y: Sign::Neg,
+    };
+
+    pub fn apply<T>(self, vec: T) -> T
+    where
+        T: Vec2Ext<f32>,
+    {
+        let [x, y] = vec.into();
+        let [x, y] = match self.swap_xy {
+            Sign::Pos => [x, y],
+            Sign::Neg => [y, x],
+        };
+        let x = match self.flip_x {
+            Sign::Pos => 0.0 + x,
+            Sign::Neg => 1.0 - x,
+        };
+        let y = match self.flip_y {
+            Sign::Pos => 0.0 + y,
+            Sign::Neg => 1.0 - y,
+        };
+        [x, y].into()
+    }
 }
 
 impl AxisSwap {
@@ -258,6 +328,7 @@ pub trait Vec3Ext<T>: From<[T; 3]> + Into<[T; 3]> {
         }
         .into()
     }
+    // TODO: remove
     fn zips(self, rhs: impl Vec3Ext<T>, mut map: impl FnMut(T, T) -> T) -> Self {
         let [x1, y1, z1] = self.into();
         let [x2, y2, z2] = rhs.into();
@@ -267,6 +338,11 @@ pub trait Vec3Ext<T>: From<[T; 3]> + Into<[T; 3]> {
 impl<T> Vec3Ext<T> for [T; 3] {}
 impl Vec3Ext<f32> for Vec3 {}
 impl Vec3Ext<i32> for IVec3 {}
+
+pub trait Vec2Ext<T>: From<[T; 2]> + Into<[T; 2]> {}
+impl<T> Vec2Ext<T> for [T; 2] {}
+impl Vec2Ext<f32> for Vec2 {}
+impl Vec2Ext<i32> for IVec2 {}
 
 impl Index<Axis> for IVec3 {
     type Output = i32;

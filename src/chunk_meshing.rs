@@ -242,29 +242,15 @@ fn make_cube_mesh2(position: Vec3, block: Block, sides: Sides<Block>, mut write:
             });
         }
     } else {
-        let Some(textures) = block.textures() else {
+        let Some(textures) = block.regular_textures() else {
             return;
         };
         for side in Side::ALL {
             if sides[side].oclusion() == Oclusion::Full {
                 continue;
             }
-            let ([uv_swap, u_flip, v_flip], texture_index) = textures[side];
-            let texture_uv = QUAD_UV.map(|[u, v]| {
-                let [u, v] = match uv_swap {
-                    Sign::Pos => [u, v],
-                    Sign::Neg => [v, u],
-                };
-                let u = match u_flip {
-                    Sign::Pos => 0.0 + u,
-                    Sign::Neg => 1.0 - u,
-                };
-                let v = match v_flip {
-                    Sign::Pos => 0.0 + v,
-                    Sign::Neg => 1.0 - v,
-                };
-                [u, v]
-            });
+            let (symetry, texture_index) = textures[side];
+            let texture_uv = QUAD_UV.map(|uv| symetry.apply(uv));
             write(Quad::Regular {
                 positions: side.quad().map(|v: Vec3| position + v),
                 normal: side.normal(),
