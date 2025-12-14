@@ -1,11 +1,16 @@
-# Objective
+# Objectives
 
-Make water shader, more water like.
+- [ ] Generate trees.
+- [ ] Make water shader, more water like.
+
+# Links
+
+https://thebookofshaders.com/12/
 
 # Optimization
 
-Large view distance, means huge number of chunks loaded.
+- [ ] Profiling
 
-Explore techniques to reduce the number of loaded chunks.
+## View distance
 
-- K-d tree
+Explore techniques to reduce the number of loaded chunks. Like Kd-tree.

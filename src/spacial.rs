@@ -53,41 +53,41 @@ impl Symetry2 {
         flip_x: Sign::Pos,
         flip_y: Sign::Pos,
     };
-    pub const PPN: Self = Self {
-        swap_xy: Sign::Pos,
-        flip_x: Sign::Pos,
-        flip_y: Sign::Neg,
-    };
-    pub const PNP: Self = Self {
-        swap_xy: Sign::Pos,
-        flip_x: Sign::Neg,
-        flip_y: Sign::Pos,
-    };
-    pub const PNN: Self = Self {
-        swap_xy: Sign::Pos,
-        flip_x: Sign::Neg,
-        flip_y: Sign::Neg,
-    };
-    pub const NPP: Self = Self {
-        swap_xy: Sign::Neg,
-        flip_x: Sign::Pos,
-        flip_y: Sign::Pos,
-    };
-    pub const NPN: Self = Self {
-        swap_xy: Sign::Neg,
-        flip_x: Sign::Pos,
-        flip_y: Sign::Neg,
-    };
+    // pub const PPN: Self = Self {
+    //     swap_xy: Sign::Pos,
+    //     flip_x: Sign::Pos,
+    //     flip_y: Sign::Neg,
+    // };
+    // pub const PNP: Self = Self {
+    //     swap_xy: Sign::Pos,
+    //     flip_x: Sign::Neg,
+    //     flip_y: Sign::Pos,
+    // };
+    // pub const PNN: Self = Self {
+    //     swap_xy: Sign::Pos,
+    //     flip_x: Sign::Neg,
+    //     flip_y: Sign::Neg,
+    // };
+    // pub const NPP: Self = Self {
+    //     swap_xy: Sign::Neg,
+    //     flip_x: Sign::Pos,
+    //     flip_y: Sign::Pos,
+    // };
+    // pub const NPN: Self = Self {
+    //     swap_xy: Sign::Neg,
+    //     flip_x: Sign::Pos,
+    //     flip_y: Sign::Neg,
+    // };
     pub const NNP: Self = Self {
         swap_xy: Sign::Neg,
         flip_x: Sign::Neg,
         flip_y: Sign::Pos,
     };
-    pub const NNN: Self = Self {
-        swap_xy: Sign::Neg,
-        flip_x: Sign::Neg,
-        flip_y: Sign::Neg,
-    };
+    // pub const NNN: Self = Self {
+    //     swap_xy: Sign::Neg,
+    //     flip_x: Sign::Neg,
+    //     flip_y: Sign::Neg,
+    // };
 
     pub fn apply<T>(self, vec: T) -> T
     where

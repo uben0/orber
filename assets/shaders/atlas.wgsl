@@ -6,8 +6,8 @@
 }
 #import bevy_core_pipeline::tonemapping::tone_mapping
 
-@group(2) @binding(0) var my_texture: texture_2d_array<f32>;
-@group(2) @binding(1) var my_sampler: sampler;
+@group(3) @binding(0) var my_texture: texture_2d_array<f32>;
+@group(3) @binding(1) var my_sampler: sampler;
 
 struct VertexIn {
     @builtin(instance_index) instance_index: u32,

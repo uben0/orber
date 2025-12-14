@@ -1,0 +1,16 @@
+use super::{Command, Block};
+
+grammar;
+
+pub Command: Command = {
+    "test" => Command::Test,
+    "place" <block:Block> => Command::Place(block),
+};
+
+Block: Block = {
+    "stone" => Block::Stone,
+    "sand" => Block::Sand,
+    "grass" => Block::Grass,
+    "water" => Block::Water,
+    "log" => Block::Log,
+}

@@ -3,14 +3,13 @@ use std::path::Path;
 use bevy::{
     asset::RenderAssetUsages,
     image::{CompressedImageFormats, ImageSampler, ImageType},
+    mesh::{MeshVertexAttribute, MeshVertexBufferLayoutRef, VertexFormat},
     pbr::{MaterialPipeline, MaterialPipelineKey},
     prelude::*,
-    render::{
-        mesh::{MeshVertexAttribute, MeshVertexBufferLayoutRef, VertexFormat},
-        render_resource::{
-            AsBindGroup, RenderPipelineDescriptor, ShaderRef, SpecializedMeshPipelineError,
-        },
+    render::render_resource::{
+        AsBindGroup, RenderPipelineDescriptor, SpecializedMeshPipelineError,
     },
+    shader::ShaderRef,
 };
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -31,7 +30,7 @@ impl Material for WaterMaterial {
         "shaders/water.wgsl".into()
     }
     fn specialize(
-        _: &MaterialPipeline<Self>,
+        _: &MaterialPipeline,
         descriptor: &mut RenderPipelineDescriptor,
         layout: &MeshVertexBufferLayoutRef,
         _: MaterialPipelineKey<Self>,

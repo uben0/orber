@@ -4,14 +4,17 @@ use crate::block::Block;
 use crate::chunk_blocks::{ChunkBlocks, chunk_generation};
 use crate::chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup};
 use crate::chunks::{Loader, Modify, chunk_indexer, chunks_setup};
+use crate::command::UserCommandParser;
 use crate::physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity};
 use crate::pointed_block::{BlockPointer, BlockPointingPlugin, Pointing};
 use crate::water_material::WaterMaterial;
+use bevy::window::{CursorOptions, PrimaryWindow};
 use bevy::{
     input::{common_conditions::input_just_pressed, mouse::MouseMotion},
     prelude::*,
     window::CursorGrabMode,
 };
+use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
 use bevy_framepace::FramepacePlugin;
 use std::f32::consts::PI;
 use std::fmt::Write;
@@ -23,6 +26,7 @@ mod block;
 mod chunk_blocks;
 mod chunk_meshing;
 mod chunks;
+mod command;
 mod octahedron;
 mod physics;
 mod pointed_block;
@@ -46,38 +50,85 @@ fn main() {
             PhysicsPlugin,
             MaterialPlugin::<AtlasMaterial>::default(),
             MaterialPlugin::<WaterMaterial>::default(),
+            EguiPlugin::default(),
         ))
+        .add_systems(EguiPrimaryContextPass, ui_system)
         .add_systems(Startup, (setup, chunks_setup, chunks_mesh_setup))
+        .configure_sets(Update, PlayerControl.run_if(is_player_control_on))
         .add_systems(
             Update,
             (
                 (
-                    control_player_rotation,
-                    control_player_physics,
-                    control_player_flying,
+                    (
+                        control_player_rotation,
+                        control_player_physics,
+                        control_player_flying,
+                    )
+                        .before(ApplyPhysics),
+                    player_acts,
+                    toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
+                    change_placing_block,
                 )
-                    .before(ApplyPhysics),
-                player_acts,
+                    .in_set(PlayerControl),
                 chunk_meshing,
                 chunk_demeshing,
                 chunk_indexer,
                 chunk_generation,
                 // chunk_state_show,
-                toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
+                toggle_input_mode,
                 inspect_ui,
                 consistency_check.run_if(input_just_pressed(KeyCode::KeyY)),
             ),
         )
+        .add_observer(on_set_placing_block)
         .run();
 }
 
 #[derive(Component, Default)]
 struct Player;
 
-fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
-    window.cursor_options.grab_mode = CursorGrabMode::Locked;
-    window.cursor_options.visible = false;
+#[derive(SystemSet, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+struct PlayerControl;
 
+fn is_player_control_on(input_mode: Res<InputMode>) -> bool {
+    *input_mode == InputMode::PlayerControl
+}
+
+#[derive(Resource, PartialEq, Eq)]
+enum InputMode {
+    PlayerControl,
+    UiInteraction,
+}
+
+fn toggle_input_mode(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,
+    mut input_mode: ResMut<InputMode>,
+) {
+    if keys.just_pressed(KeyCode::Escape) {
+        match *input_mode {
+            InputMode::PlayerControl => {
+                *input_mode = InputMode::UiInteraction;
+                cursor_options.grab_mode = CursorGrabMode::None;
+                cursor_options.visible = true;
+            }
+            InputMode::UiInteraction => {
+                *input_mode = InputMode::PlayerControl;
+                cursor_options.grab_mode = CursorGrabMode::Locked;
+                cursor_options.visible = false;
+            }
+        }
+    }
+}
+
+fn setup(
+    mut commands: Commands,
+    mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,
+) {
+    cursor_options.grab_mode = CursorGrabMode::Locked;
+    cursor_options.visible = false;
+
+    commands.insert_resource(InputMode::PlayerControl);
     commands.insert_resource(ClearColor(Color::srgb(0.7, 0.9, 1.0)));
     commands.insert_resource(AmbientLight {
         brightness: 1000.0,
@@ -90,6 +141,7 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
     commands.spawn((
         Player,
         BlockPointer::new(16.0),
+        PlacingBlock(Block::Sand),
         Collider {
             size: vec3(0.8, 1.9, 0.8),
             anchor: vec3(0.4, 1.7, 0.4),
@@ -123,6 +175,33 @@ fn setup(mut commands: Commands, mut window: Single<&mut Window>) {
             (Text(default()), font.clone()),
         ],
     ));
+}
+
+fn ui_system(
+    commands: Commands,
+    mut contexts: EguiContexts,
+    mut text: Local<String>,
+    parser: Local<UserCommandParser>,
+) {
+    egui::Window::new("console").show(contexts.ctx_mut().unwrap(), |ui| {
+        let line = ui.text_edit_singleline(&mut *text);
+        if line.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            if let Ok(command) = parser.parse(&*text) {
+                command.dispatch(commands);
+            }
+            text.clear();
+        }
+    });
+}
+
+#[derive(Event, Debug)]
+struct SetPlacingBlock(Block);
+
+fn on_set_placing_block(
+    change: On<SetPlacingBlock>,
+    mut player: Single<&mut PlacingBlock, With<Player>>,
+) {
+    player.0 = change.0;
 }
 
 fn consistency_check(blocks: Query<&ChunkBlocks>) {
@@ -166,12 +245,15 @@ fn inspect_ui(
     }
 }
 
+#[derive(Component)]
+struct PlacingBlock(Block);
+
 fn player_acts(
     mouse: Res<ButtonInput<MouseButton>>,
-    player: Single<&BlockPointer, With<Player>>,
+    player: Single<(&BlockPointer, &PlacingBlock), With<Player>>,
     mut commands: Commands,
 ) {
-    if let Some(Pointing { global, side }) = player.pointing {
+    if let Some(Pointing { global, side }) = player.0.pointing {
         if mouse.just_pressed(MouseButton::Left) {
             commands.trigger(Modify::Place {
                 global,
@@ -181,8 +263,21 @@ fn player_acts(
         if mouse.just_pressed(MouseButton::Right) {
             commands.trigger(Modify::Place {
                 global: side.neighbour(global),
-                block: Block::Stone,
+                block: player.1.0,
             });
+        }
+    }
+}
+
+fn change_placing_block(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
+    let map = [
+        (KeyCode::Digit0, Block::Stone),
+        (KeyCode::Digit1, Block::Sand),
+        (KeyCode::Digit2, Block::Grass),
+    ];
+    for (key_code, block) in map {
+        if keys.just_pressed(key_code) {
+            commands.trigger(SetPlacingBlock(block));
         }
     }
 }
@@ -197,7 +292,7 @@ fn toggle_flying(player: Single<(Entity, Has<Velocity>), With<Player>>, mut comm
 }
 
 fn control_player_rotation(
-    mut mouse: EventReader<MouseMotion>,
+    mut mouse: MessageReader<MouseMotion>,
     mut player: Single<&mut Transform, With<Player>>,
     time: Res<Time>,
 ) {

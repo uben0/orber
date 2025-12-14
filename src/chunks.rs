@@ -35,7 +35,7 @@ pub fn chunks_setup(mut commands: Commands) {
 }
 
 fn observe_chunk_modify(
-    trigger: Trigger<Modify>,
+    trigger: On<Modify>,
     index: Res<ChunksIndex>,
     mut blocks: Query<&mut ChunkBlocks>,
     mut commands: Commands,

@@ -3,10 +3,10 @@ use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, local_to_global};
-use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt, Sign};
+use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt};
 use crate::water_material::WaterMaterial;
+use bevy::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 use bevy::prelude::*;
-use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 
 #[derive(Component)]
 pub struct NeedsRemeshing;
