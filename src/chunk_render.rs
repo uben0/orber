@@ -1,18 +1,31 @@
 use crate::CHUNK_WIDTH;
-use crate::atlas_material::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
 use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::{Chunk, ChunksIndex, Loader, local_to_global};
+use crate::material::terrain::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
+use crate::material::water::WaterMaterial;
 use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt};
-use crate::water_material::WaterMaterial;
+use bevy::camera::primitives::MeshAabb;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
 use bevy::prelude::*;
+
+pub struct ChunkRenderPlugin;
+impl Plugin for ChunkRenderPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            MaterialPlugin::<AtlasMaterial>::default(),
+            MaterialPlugin::<WaterMaterial>::default(),
+        ))
+        .add_systems(Startup, chunks_mesh_setup)
+        .add_systems(Update, (chunk_meshing, chunk_demeshing));
+    }
+}
 
 #[derive(Component)]
 pub struct NeedsRemeshing;
 
 #[derive(Component, Clone, Copy)]
-pub struct HasMesh {
+struct HasMesh {
     regular: Entity,
     water: Entity,
 }
@@ -28,12 +41,13 @@ type Candidate = (
     Or<(Without<HasMesh>, With<NeedsRemeshing>)>,
 );
 
-pub fn chunks_mesh_setup(
+fn chunks_mesh_setup(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut atlas_material: ResMut<Assets<AtlasMaterial>>,
     mut water_materials: ResMut<Assets<WaterMaterial>>,
 ) {
+    // std::env::var( /)
     commands.insert_resource(MeshAssets {
         atlas_material: atlas_material.add(AtlasMaterial::new(
             "assets/textures/blocks.png",
@@ -47,7 +61,7 @@ pub fn chunks_mesh_setup(
     });
 }
 
-pub fn chunk_meshing(
+fn chunk_meshing(
     index: Res<ChunksIndex>,
     blocks: Query<&ChunkBlocks>,
     chunks: Query<(Entity, &Chunk, Option<&HasMesh>), Candidate>,
@@ -82,7 +96,11 @@ pub fn chunk_meshing(
                     commands.entity(entity).insert(HasMesh { regular, water });
                     HasMesh { regular, water }
                 };
+
                 let (regular, water) = chunk_build_mesh(&index, blocks, chunk);
+                let regular_aabb = regular.compute_aabb();
+                let water_aabb = water.compute_aabb();
+
                 commands.entity(entity).remove::<NeedsRemeshing>();
                 commands.entity(has_mesh.regular).insert((
                     Mesh3d(meshes.add(regular)),
@@ -92,12 +110,19 @@ pub fn chunk_meshing(
                     Mesh3d(meshes.add(water)),
                     MeshMaterial3d(assets.water_material.clone()),
                 ));
+
+                if let Some(aabb) = regular_aabb {
+                    commands.entity(has_mesh.regular).insert(aabb);
+                }
+                if let Some(aabb) = water_aabb {
+                    commands.entity(has_mesh.water).insert(aabb);
+                }
             }
         }
     }
 }
 
-pub fn chunk_demeshing(
+fn chunk_demeshing(
     chunks: Query<(Entity, &Chunk, Option<&HasMesh>), Or<(With<HasMesh>, With<NeedsRemeshing>)>>,
     loaders: Query<(&Transform, &Loader)>,
     mut commands: Commands,

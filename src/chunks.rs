@@ -1,6 +1,6 @@
 use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
-use crate::chunk_meshing::NeedsRemeshing;
+use crate::chunk_render::NeedsRemeshing;
 use crate::spacial::{Side, Sides, SidesExt};
 use crate::{CHUNK_WIDTH, octahedron};
 use bevy::ecs::query::QueryEntityError;
@@ -20,8 +20,8 @@ pub struct Chunk {
 
 #[derive(Component, Clone, Copy)]
 pub struct Loader {
-    radius: f32,
-    buffer: f32,
+    pub radius: f32,
+    pub buffer: f32,
 }
 
 #[derive(Event, Debug)]

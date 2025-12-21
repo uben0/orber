@@ -3,6 +3,7 @@ use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::ChunksIndex;
 use crate::ray_travel::RayTraveler;
 use crate::spacial::{Side, Sign, Vec3Ext};
+use bevy::math::bounding::{Aabb3d, IntersectsVolume};
 use bevy::prelude::*;
 
 #[derive(SystemSet, Clone, PartialEq, Eq, Debug, Hash)]
@@ -21,7 +22,7 @@ impl Plugin for PhysicsPlugin {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Collider {
     pub size: Vec3,
     pub anchor: Vec3,
@@ -34,6 +35,24 @@ pub struct Velocity {
 
 #[derive(Component)]
 pub struct Grounded;
+
+fn collider_aabb(transform: Transform, collider: Collider) -> Aabb3d {
+    Aabb3d {
+        min: (transform.translation - collider.anchor).into(),
+        max: (transform.translation - collider.anchor + collider.size).into(),
+    }
+}
+
+fn global_aabb(global: IVec3) -> Aabb3d {
+    Aabb3d {
+        min: global.as_vec3a(),
+        max: (global + IVec3::ONE).as_vec3a(),
+    }
+}
+
+pub fn intersects(transform: Transform, collider: Collider, global: IVec3) -> bool {
+    collider_aabb(transform, collider).intersects(&global_aabb(global))
+}
 
 fn damp_velocity(collider: Query<(&mut Velocity, Has<Grounded>), With<Collider>>, time: Res<Time>) {
     for (mut velocity, grounded) in collider {

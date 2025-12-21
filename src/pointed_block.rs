@@ -1,4 +1,4 @@
-use crate::block::{Block, Oclusion};
+use crate::block::Block;
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunks::ChunksIndex;
 use crate::ray_travel::RayTraveler;
@@ -66,8 +66,7 @@ fn pointed_block(
             index
                 .get_block(|e| blocks.get(e), step.voxel)
                 .unwrap_or(Block::Air)
-                .oclusion()
-                != Oclusion::None
+                .collides()
         })
         .map(|found| Pointing {
             global: found.voxel,

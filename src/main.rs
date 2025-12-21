@@ -1,39 +1,33 @@
-use crate::atlas_material::AtlasMaterial;
 use crate::axis_overlay::AxisOverlayPlugin;
 use crate::block::Block;
-use crate::chunk_blocks::{ChunkBlocks, chunk_generation};
-use crate::chunk_meshing::{chunk_demeshing, chunk_meshing, chunks_mesh_setup};
-use crate::chunks::{Loader, Modify, chunk_indexer, chunks_setup};
+use crate::chunk_blocks::chunk_generation;
+use crate::chunk_render::ChunkRenderPlugin;
+use crate::chunks::{Loader, chunk_indexer, chunks_setup};
 use crate::command::UserCommandParser;
-use crate::physics::{ApplyPhysics, Collider, Grounded, PhysicsPlugin, Velocity};
-use crate::pointed_block::{BlockPointer, BlockPointingPlugin, Pointing};
-use crate::water_material::WaterMaterial;
+use crate::physics::{Collider, PhysicsPlugin};
+use crate::player_control::PlayerControlPlugin;
+use crate::pointed_block::{BlockPointer, BlockPointingPlugin};
 use bevy::window::{CursorOptions, PrimaryWindow};
-use bevy::{
-    input::{common_conditions::input_just_pressed, mouse::MouseMotion},
-    prelude::*,
-    window::CursorGrabMode,
-};
+use bevy::{prelude::*, window::CursorGrabMode};
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
 use bevy_framepace::FramepacePlugin;
-use std::f32::consts::PI;
 use std::fmt::Write;
 
 mod array_queue;
-mod atlas_material;
 mod axis_overlay;
 mod block;
 mod chunk_blocks;
-mod chunk_meshing;
+mod chunk_render;
 mod chunks;
 mod command;
+mod material;
 mod octahedron;
 mod physics;
+mod player_control;
 mod pointed_block;
 mod ray_travel;
 mod spacial;
 mod terrain;
-mod water_material;
 
 const CHUNK_WIDTH: i32 = 32;
 
@@ -42,57 +36,33 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             FramepacePlugin,
-            AxisOverlayPlugin {
-                target: Player,
-                ..default()
-            },
+            AxisOverlayPlugin::<Player>::default(),
             BlockPointingPlugin,
             PhysicsPlugin,
-            MaterialPlugin::<AtlasMaterial>::default(),
-            MaterialPlugin::<WaterMaterial>::default(),
+            ChunkRenderPlugin,
             EguiPlugin::default(),
+            PlayerControlPlugin,
         ))
-        .add_systems(EguiPrimaryContextPass, ui_system)
-        .add_systems(Startup, (setup, chunks_setup, chunks_mesh_setup))
-        .configure_sets(Update, PlayerControl.run_if(is_player_control_on))
+        .add_systems(EguiPrimaryContextPass, console)
+        .add_systems(Startup, (setup, chunks_setup))
         .add_systems(
             Update,
             (
-                (
-                    (
-                        control_player_rotation,
-                        control_player_physics,
-                        control_player_flying,
-                    )
-                        .before(ApplyPhysics),
-                    player_acts,
-                    toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
-                    change_placing_block,
-                )
-                    .in_set(PlayerControl),
-                chunk_meshing,
-                chunk_demeshing,
                 chunk_indexer,
                 chunk_generation,
                 // chunk_state_show,
                 toggle_input_mode,
                 inspect_ui,
-                consistency_check.run_if(input_just_pressed(KeyCode::KeyY)),
             ),
         )
         .add_observer(on_set_placing_block)
+        .add_observer(on_set_input_mode)
+        .add_observer(on_set_render_distance)
         .run();
 }
 
 #[derive(Component, Default)]
 struct Player;
-
-#[derive(SystemSet, Clone, Copy, PartialEq, Eq, Debug, Hash)]
-struct PlayerControl;
-
-fn is_player_control_on(input_mode: Res<InputMode>) -> bool {
-    *input_mode == InputMode::PlayerControl
-}
 
 #[derive(Resource, PartialEq, Eq)]
 enum InputMode {
@@ -100,24 +70,38 @@ enum InputMode {
     UiInteraction,
 }
 
-fn toggle_input_mode(
-    keys: Res<ButtonInput<KeyCode>>,
+#[derive(Event, Deref)]
+struct SetInputMode(InputMode);
+
+fn on_set_input_mode(
+    new_input_mode: On<SetInputMode>,
     mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,
     mut input_mode: ResMut<InputMode>,
 ) {
-    if keys.just_pressed(KeyCode::Escape) {
-        match *input_mode {
-            InputMode::PlayerControl => {
-                *input_mode = InputMode::UiInteraction;
-                cursor_options.grab_mode = CursorGrabMode::None;
-                cursor_options.visible = true;
-            }
-            InputMode::UiInteraction => {
-                *input_mode = InputMode::PlayerControl;
-                cursor_options.grab_mode = CursorGrabMode::Locked;
-                cursor_options.visible = false;
-            }
+    match **new_input_mode {
+        InputMode::UiInteraction => {
+            *input_mode = InputMode::UiInteraction;
+            cursor_options.grab_mode = CursorGrabMode::None;
+            cursor_options.visible = true;
         }
+        InputMode::PlayerControl => {
+            *input_mode = InputMode::PlayerControl;
+            cursor_options.grab_mode = CursorGrabMode::Locked;
+            cursor_options.visible = false;
+        }
+    }
+}
+
+fn toggle_input_mode(
+    mut commands: Commands,
+    input_mode: Res<InputMode>,
+    keys: Res<ButtonInput<KeyCode>>,
+) {
+    if keys.just_pressed(KeyCode::Escape) {
+        commands.trigger(SetInputMode(match *input_mode {
+            InputMode::PlayerControl => InputMode::UiInteraction,
+            InputMode::UiInteraction => InputMode::PlayerControl,
+        }))
     }
 }
 
@@ -133,6 +117,11 @@ fn setup(
     commands.insert_resource(AmbientLight {
         brightness: 1000.0,
         ..default()
+    });
+    commands.insert_resource(ConsoleState {
+        input: String::new(),
+        active: false,
+        focus: false,
     });
     commands.spawn((
         Transform::from_rotation(Quat::from_euler(default(), -0.4, -1.2, 0.0)),
@@ -177,19 +166,45 @@ fn setup(
     ));
 }
 
-fn ui_system(
-    commands: Commands,
+#[derive(Event, Deref)]
+struct SetRenderDistance(f32);
+
+fn on_set_render_distance(
+    new_render_distance: On<SetRenderDistance>,
+    mut player: Single<&mut Loader, With<Player>>,
+) {
+    player.radius = **new_render_distance;
+}
+
+#[derive(Resource)]
+struct ConsoleState {
+    input: String,
+    active: bool,
+    focus: bool,
+}
+
+fn console(
+    mut console: ResMut<ConsoleState>,
+    mut commands: Commands,
     mut contexts: EguiContexts,
-    mut text: Local<String>,
     parser: Local<UserCommandParser>,
 ) {
+    if !console.active {
+        return;
+    }
     egui::Window::new("console").show(contexts.ctx_mut().unwrap(), |ui| {
-        let line = ui.text_edit_singleline(&mut *text);
+        let line = ui.text_edit_singleline(&mut console.input);
+        if console.focus {
+            console.focus = false;
+            line.request_focus();
+        }
         if line.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-            if let Ok(command) = parser.parse(&*text) {
+            console.active = false;
+            commands.trigger(SetInputMode(InputMode::PlayerControl));
+            if let Ok(command) = parser.parse(&console.input) {
                 command.dispatch(commands);
             }
-            text.clear();
+            console.input.clear();
         }
     });
 }
@@ -202,13 +217,6 @@ fn on_set_placing_block(
     mut player: Single<&mut PlacingBlock, With<Player>>,
 ) {
     player.0 = change.0;
-}
-
-fn consistency_check(blocks: Query<&ChunkBlocks>) {
-    for blocks in blocks {
-        blocks.assert_consistency();
-    }
-    info!("consistency check successful");
 }
 
 #[derive(Component)]
@@ -247,140 +255,3 @@ fn inspect_ui(
 
 #[derive(Component)]
 struct PlacingBlock(Block);
-
-fn player_acts(
-    mouse: Res<ButtonInput<MouseButton>>,
-    player: Single<(&BlockPointer, &PlacingBlock), With<Player>>,
-    mut commands: Commands,
-) {
-    if let Some(Pointing { global, side }) = player.0.pointing {
-        if mouse.just_pressed(MouseButton::Left) {
-            commands.trigger(Modify::Place {
-                global,
-                block: Block::Air,
-            });
-        }
-        if mouse.just_pressed(MouseButton::Right) {
-            commands.trigger(Modify::Place {
-                global: side.neighbour(global),
-                block: player.1.0,
-            });
-        }
-    }
-}
-
-fn change_placing_block(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
-    let map = [
-        (KeyCode::Digit0, Block::Stone),
-        (KeyCode::Digit1, Block::Sand),
-        (KeyCode::Digit2, Block::Grass),
-    ];
-    for (key_code, block) in map {
-        if keys.just_pressed(key_code) {
-            commands.trigger(SetPlacingBlock(block));
-        }
-    }
-}
-
-fn toggle_flying(player: Single<(Entity, Has<Velocity>), With<Player>>, mut commands: Commands) {
-    let (entity, has_physics) = player.into_inner();
-    if has_physics {
-        commands.entity(entity).remove::<Velocity>();
-    } else {
-        commands.entity(entity).insert(Velocity::default());
-    }
-}
-
-fn control_player_rotation(
-    mut mouse: MessageReader<MouseMotion>,
-    mut player: Single<&mut Transform, With<Player>>,
-    time: Res<Time>,
-) {
-    const PLAYER_ROTATION: f32 = 0.2;
-    let (mut yaw, mut pitch, _) = player.rotation.to_euler(default());
-    for MouseMotion {
-        delta: Vec2 { x, y },
-    } in mouse.read()
-    {
-        yaw -= x * time.delta_secs() * PLAYER_ROTATION;
-        pitch -= y * time.delta_secs() * PLAYER_ROTATION;
-    }
-    yaw = yaw.rem_euclid(2.0 * PI);
-    pitch = pitch.clamp(-PI / 2.0, PI / 2.0);
-    player.rotation = Quat::from_euler(default(), yaw, pitch, 0.0);
-}
-
-fn control_player_physics(
-    keys: Res<ButtonInput<KeyCode>>,
-    player: Single<(&Transform, &mut Velocity, Has<Grounded>), With<Player>>,
-    time: Res<Time>,
-) {
-    let (transform, mut velocity, grounded) = player.into_inner();
-    if keys.pressed(KeyCode::Space) && grounded {
-        velocity.linear.y = 12.0;
-    }
-
-    let mut dir = Vec3::ZERO;
-    if keys.pressed(KeyCode::KeyE) {
-        dir -= Vec3::Z;
-    }
-    if keys.pressed(KeyCode::KeyD) {
-        dir += Vec3::Z;
-    }
-    if keys.pressed(KeyCode::KeyF) {
-        dir += Vec3::X;
-    }
-    if keys.pressed(KeyCode::KeyS) {
-        dir -= Vec3::X;
-    }
-    let dir = dir.normalize_or_zero();
-
-    let force = match (grounded, keys.pressed(KeyCode::KeyA)) {
-        (true, true) => 110.0,
-        (true, false) => 90.0,
-        (false, _) => 40.0,
-    };
-
-    let (yaw, _, _) = transform.rotation.to_euler(default());
-    let plane_rotation = Quat::from_euler(default(), yaw, 0.0, 0.0);
-    velocity.linear += plane_rotation * force * time.delta_secs() * dir;
-}
-
-fn control_player_flying(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut player: Single<&mut Transform, (With<Player>, Without<Velocity>)>,
-    time: Res<Time>,
-) {
-    const PLAYER_SPEED: f32 = 8.0;
-    const PLAYER_SPEED_BOOST: f32 = 24.0;
-
-    let mut dir = Vec3::ZERO;
-    if keys.pressed(KeyCode::Space) {
-        dir += Vec3::Y;
-    }
-    if keys.pressed(KeyCode::KeyZ) {
-        dir -= Vec3::Y;
-    }
-    if keys.pressed(KeyCode::KeyE) {
-        dir -= Vec3::Z;
-    }
-    if keys.pressed(KeyCode::KeyD) {
-        dir += Vec3::Z;
-    }
-    if keys.pressed(KeyCode::KeyF) {
-        dir += Vec3::X;
-    }
-    if keys.pressed(KeyCode::KeyS) {
-        dir -= Vec3::X;
-    }
-    let dir = dir.normalize_or_zero();
-
-    let speed = match keys.pressed(KeyCode::KeyA) {
-        true => PLAYER_SPEED_BOOST,
-        false => PLAYER_SPEED,
-    };
-
-    let (yaw, _, _) = player.rotation.to_euler(default());
-    let plane_rotation = Quat::from_euler(default(), yaw, 0.0, 0.0);
-    player.translation += plane_rotation * dir * time.delta_secs() * speed;
-}

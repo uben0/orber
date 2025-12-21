@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use bevy::{camera::visibility::RenderLayers, prelude::*};
 
 #[derive(GizmoConfigGroup, Default, Reflect)]
@@ -9,7 +11,7 @@ pub struct AxisOverlayPlugin<T> {
     pub order: isize,
     pub length: f32,
     pub thickness: f32,
-    pub target: T,
+    pub phantom: PhantomData<T>,
 }
 
 impl<T> Default for AxisOverlayPlugin<T>
@@ -22,7 +24,7 @@ where
             order: 1,
             length: 20.0,
             thickness: 4.0,
-            target: default(),
+            phantom: default(),
         }
     }
 }
@@ -32,13 +34,12 @@ where
     T: Component,
 {
     fn build(&self, app: &mut App) {
-        let _ = self.target;
         let AxisOverlayPlugin {
             layer,
             order,
             length,
             thickness,
-            ..
+            phantom: _,
         } = *self;
 
         app.insert_gizmo_config(

@@ -44,6 +44,9 @@ impl Material for AtlasMaterial {
         descriptor.vertex.buffers = Vec::from([vertex_layout]);
         Ok(())
     }
+    // fn alpha_mode(&self) -> AlphaMode {
+    //     AlphaMode::Mask(0.5)
+    // }
 }
 
 impl AtlasMaterial {
