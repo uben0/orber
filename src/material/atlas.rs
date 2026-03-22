@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use bevy::{
     asset::RenderAssetUsages,
     image::{CompressedImageFormats, ImageSampler, ImageType},
@@ -44,14 +42,10 @@ impl Material for AtlasMaterial {
         descriptor.vertex.buffers = Vec::from([vertex_layout]);
         Ok(())
     }
-    // fn alpha_mode(&self) -> AlphaMode {
-    //     AlphaMode::Mask(0.5)
-    // }
 }
 
 impl AtlasMaterial {
-    pub fn new(atlas_path: impl AsRef<Path>, tile_width: u32, images: &mut Assets<Image>) -> Self {
-        let bytes = std::fs::read(atlas_path).unwrap();
+    pub fn new(bytes: &[u8], tile_width: u32, images: &mut Assets<Image>) -> Self {
         let is_srgb = true;
         let mut textures = Image::from_buffer(
             &bytes,
@@ -62,7 +56,9 @@ impl AtlasMaterial {
             RenderAssetUsages::default(),
         )
         .unwrap();
-        textures.reinterpret_stacked_2d_as_array(textures.height() / tile_width);
+        textures
+            .reinterpret_stacked_2d_as_array(textures.height() / tile_width)
+            .unwrap();
         Self {
             texture: images.add(textures),
         }

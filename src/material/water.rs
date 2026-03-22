@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use bevy::{
     asset::RenderAssetUsages,
     image::{CompressedImageFormats, ImageSampler, ImageType},
@@ -50,8 +48,7 @@ impl Material for WaterMaterial {
 }
 
 impl WaterMaterial {
-    pub fn new(atlas_path: impl AsRef<Path>, images: &mut Assets<Image>) -> Self {
-        let bytes = std::fs::read(atlas_path).unwrap();
+    pub fn new(bytes: &[u8], images: &mut Assets<Image>) -> Self {
         let is_srgb = true;
         let textures = Image::from_buffer(
             &bytes,

@@ -78,7 +78,7 @@ fn pointed_block(
 fn pointed_block_overlay(pointers: Query<&BlockPointer>, mut gizmos: Gizmos<PointedBlockOverlay>) {
     for pointer in pointers {
         if let Some(pointing) = pointer.pointing {
-            gizmos.cuboid(
+            gizmos.cube(
                 Transform::from_translation(pointing.global.as_vec3() + 0.5 * Vec3::ONE),
                 Color::srgb(0.0, 0.0, 0.0),
             );

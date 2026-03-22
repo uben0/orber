@@ -55,10 +55,16 @@ pub fn intersects(transform: Transform, collider: Collider, global: IVec3) -> bo
 }
 
 fn damp_velocity(collider: Query<(&mut Velocity, Has<Grounded>), With<Collider>>, time: Res<Time>) {
+    let rate_grounded = 1e-9f32.powf(time.delta_secs());
+    let rate_airborne = 1e-3f32.powf(time.delta_secs());
+
     for (mut velocity, grounded) in collider {
-        let rate: f32 = if grounded { 0.7 } else { 0.9 };
-        velocity.linear.x *= rate.powf(time.delta_secs() + 1.0);
-        velocity.linear.z *= rate.powf(time.delta_secs() + 1.0);
+        let rate = match grounded {
+            true => rate_grounded,
+            false => rate_airborne,
+        };
+        velocity.linear.x *= rate;
+        velocity.linear.z *= rate;
     }
 }
 
@@ -138,22 +144,21 @@ fn apply_velocity(
             commands.entity(entity).remove::<Grounded>();
         }
 
-        if index
-            .get_block(
-                |e| blocks.get(e),
-                (corner_active + shift).floor().as_ivec3(),
-            )
-            .unwrap_or(Block::Air)
-            .collides()
-        {
-            println!("collider tunneling");
-            println!(" - pos    {:.10}", corner_active);
-            println!(" - shift* {:.10}", shift);
-            println!(" - pos*   {:.10}", corner_active + shift);
-            println!();
-            commands.entity(entity).remove::<Velocity>();
-            return;
-        }
+        // if index
+        //     .get_block(
+        //         |e| blocks.get(e),
+        //         (corner_active + shift).floor().as_ivec3(),
+        //     )
+        //     .unwrap_or(Block::Air)
+        //     .collides()
+        // {
+        //     println!("collider tunneling");
+        //     println!(" - pos    {:.10}", corner_active);
+        //     println!(" - shift* {:.10}", shift);
+        //     println!(" - pos*   {:.10}", corner_active + shift);
+        //     println!();
+        //     return;
+        // }
 
         tr.translation += shift;
     }

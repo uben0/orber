@@ -1,10 +1,19 @@
 use crate::CHUNK_WIDTH;
 use crate::array_queue::ArrayVecExt;
 use crate::block::Block;
-use crate::chunks::{Chunk, Loader, assert_is_local, local_to_global};
-use crate::terrain::TerrainDescriptor;
+use crate::chunk_render::NeedsRemeshing;
+use crate::chunks::{Chunk, ChunksIndex, Loader, chunk_neighbours_hexahedron, local_to_global};
+use crate::terrain::TerrainGenerationParameters;
 use arrayvec::ArrayVec;
-use bevy::{math::Vec3Swizzles, platform::collections::HashMap, prelude::*};
+use bevy::platform::collections::HashMap;
+use bevy::prelude::*;
+use rand::rngs::SmallRng;
+use rand::{RngExt, SeedableRng};
+use std::hash::Hash;
+use std::hash::{DefaultHasher, Hasher};
+
+#[derive(Component)]
+pub struct GenStage;
 
 #[derive(Component)]
 pub struct ChunkBlocks {
@@ -15,6 +24,7 @@ pub struct ChunkBlocks {
 const MAX_CHUNK_GEN_PER_FRAME: usize = 2;
 
 pub fn chunk_generation(
+    parameters: Res<TerrainGenerationParameters>,
     chunks: Query<(Entity, &Chunk), Without<ChunkBlocks>>,
     loaders: Query<(&Transform, &Loader)>,
     mut commands: Commands,
@@ -24,7 +34,7 @@ pub fn chunk_generation(
         if let Some(distance) = loaders
             .iter()
             .filter_map(|(transform, &loader)| {
-                loader.inside_zone2(transform.translation, chunk, Loader::ZONE_BLOCKS)
+                loader.inside_zone(transform.translation, chunk, Loader::ZONE_BLOCKS)
             })
             .min()
         {
@@ -32,8 +42,90 @@ pub fn chunk_generation(
         }
     }
     for (_, entity, chunk) in mins {
-        commands.entity(entity).insert(ChunkBlocks::new(chunk));
+        commands
+            .entity(entity)
+            .insert((ChunkBlocks::new(chunk, &parameters), GenStage));
     }
+}
+
+pub fn chunk_generation_struct(
+    candidates: Query<(Entity, &Chunk), With<GenStage>>,
+    mut blocks: Query<&mut ChunkBlocks>,
+    index: Res<ChunksIndex>,
+    loaders: Query<(&Transform, &Loader)>,
+    mut commands: Commands,
+) {
+    for (candidate, &chunk) in candidates {
+        if loaders.iter().any(|(transform, &loader)| {
+            loader
+                .inside_zone(transform.translation, chunk, Loader::ZONE_STRUCT)
+                .is_some()
+        }) {
+            if chunk_neighbours_hexahedron(chunk)
+                .iter()
+                .all(|&n| index.get(n).map(|e| blocks.contains(e)).unwrap_or(false))
+            {
+                commands
+                    .entity(candidate)
+                    .remove::<GenStage>()
+                    .insert(NeedsRemeshing);
+                for x in 0..CHUNK_WIDTH {
+                    for y in 0..CHUNK_WIDTH {
+                        for z in 0..CHUNK_WIDTH {
+                            let global = local_to_global(chunk, ivec3(x, y, z));
+                            if index.get_block(|e| blocks.get(e), global) == Some(Block::Grass)
+                                && index.get_block(|e| blocks.get(e), global + IVec3::Y)
+                                    == Some(Block::Air)
+                                && seeded_random(global) > 0.97
+                            {
+                                build_tree(|relative, block| {
+                                    index.set_block_if_stronger(
+                                        |e| blocks.get_mut(e),
+                                        global + relative,
+                                        block,
+                                    );
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn build_tree(mut place: impl FnMut(IVec3, Block)) {
+    place(ivec3(0, 0, 0), Block::Log);
+    place(ivec3(0, 1, 0), Block::Log);
+    place(ivec3(0, 2, 0), Block::Log);
+    place(ivec3(0, 3, 0), Block::Log);
+
+    place(ivec3(1, 3, 0), Block::Leaves);
+    place(ivec3(1, 3, 1), Block::Leaves);
+    place(ivec3(0, 3, 1), Block::Leaves);
+    place(ivec3(-1, 3, 1), Block::Leaves);
+    place(ivec3(-1, 3, 0), Block::Leaves);
+    place(ivec3(-1, 3, -1), Block::Leaves);
+    place(ivec3(0, 3, -1), Block::Leaves);
+    place(ivec3(1, 3, -1), Block::Leaves);
+
+    place(ivec3(1, 4, 0), Block::Leaves);
+    place(ivec3(1, 4, 1), Block::Leaves);
+    place(ivec3(0, 4, 1), Block::Leaves);
+    place(ivec3(-1, 4, 1), Block::Leaves);
+    place(ivec3(-1, 4, 0), Block::Leaves);
+    place(ivec3(-1, 4, -1), Block::Leaves);
+    place(ivec3(0, 4, -1), Block::Leaves);
+    place(ivec3(1, 4, -1), Block::Leaves);
+    place(ivec3(0, 4, 0), Block::Leaves);
+
+    place(ivec3(0, 5, 0), Block::Leaves);
+}
+
+fn seeded_random<T: Hash>(seed: T) -> f32 {
+    let mut hasher = DefaultHasher::new();
+    seed.hash(&mut hasher);
+    SmallRng::seed_from_u64(hasher.finish()).random()
 }
 
 impl ChunkBlocks {
@@ -41,14 +133,14 @@ impl ChunkBlocks {
         default: Block::Air,
         blocks: HashMap::new(),
     };
-    pub fn new(chunk: Chunk) -> Self {
+    pub fn new(chunk: Chunk, parameters: &TerrainGenerationParameters) -> Self {
         let mut blocks = Self::AIR;
         for x in 0..CHUNK_WIDTH {
             for z in 0..CHUNK_WIDTH {
                 let local = IVec3 { x, y: 0, z };
                 let global = local_to_global(chunk, local);
 
-                let terrain = TerrainDescriptor::at(global.xz());
+                let terrain = parameters.descriptor(global.xz());
                 for y in 0..CHUNK_WIDTH {
                     let local = IVec3 { x, y, z };
                     let global = local_to_global(chunk, local);
@@ -56,7 +148,7 @@ impl ChunkBlocks {
                     let block = if global.y < terrain.elevation.round() as i32 {
                         Block::Stone
                     } else if global.y < (terrain.elevation + terrain.sediment).round() as i32 {
-                        if terrain.continent > 3.0 {
+                        if terrain.continent > 2.0 {
                             Block::Grass
                         } else {
                             Block::Sand
@@ -110,12 +202,12 @@ impl ChunkBlocks {
         }
         self.default = new_default;
     }
-    pub fn assert_consistency(&self) {
-        for (&local, &block) in &self.blocks {
-            assert_is_local(local);
-            assert_ne!(block, self.default);
-        }
-    }
+    // pub fn assert_consistency(&self) {
+    //     for (&local, &block) in &self.blocks {
+    //         assert_is_local(local);
+    //         assert_ne!(block, self.default);
+    //     }
+    // }
     fn most_abundant(&self) -> Block {
         let mut counts = HashMap::new();
         let default_count = CHUNK_WIDTH.pow(3) - self.blocks.len() as i32;

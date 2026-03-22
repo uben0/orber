@@ -1,22 +1,27 @@
 [package]
-name = "blocky"
+name = "momoe"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 arrayvec = "0.7.6"
-bevy_egui = "0.38.0"
-bevy_framepace = "0.20.1"
-lalrpop-util = { version = "0.22.2", features = ["lexer"] }
-noisy_bevy = "0.11.0"
+bevy_fix_cursor_unlock_web = "0.3.0"
+bevy_framepace = "0.21.0"
+lalrpop-util = { version = "0.23.0", features = ["lexer"] }
+noisy_bevy = "0.13.0"
+rand = { version = "0.10.0", default-features = false }
 
 [dependencies.bevy]
-version = "0.17.3"
+version = "0.18.0"
 default-features = false
 features = [
+  "asset_processor",
+  "bevy_asset",
   "bevy_camera",
   "bevy_color",
+  "bevy_dev_tools",
   "bevy_gizmos",
+  "bevy_gizmos_render",
   "bevy_light",
   "bevy_log",
   "bevy_mesh",
@@ -26,12 +31,18 @@ features = [
   "bevy_shader",
   "bevy_text",
   "bevy_ui",
+  "bevy_ui_render",
   "bevy_window",
+  "debug",
+  "experimental_bevy_feathers",
   "multi_threaded",
-  "tonemapping_luts",
-  "x11",
   "png",
+  "tonemapping_luts",
+  "wayland",
+  "web",
+  "webgpu",
   "zstd_rust",
+  # "x11",
 ]
 
 [profile.dev]
@@ -41,4 +52,4 @@ opt-level = 1
 opt-level = 3
 
 [build-dependencies]
-lalrpop = "0.22.2"
+lalrpop = "0.23.0"

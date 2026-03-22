@@ -1,10 +1,8 @@
-use std::f32::consts::PI;
-
 use crate::{
-    ConsoleState, InputMode, PlacingBlock, Player, SetInputMode, SetPlacingBlock,
+    Player,
     block::Block,
-    chunk_blocks::ChunkBlocks,
     chunks::Modify,
+    keybindings::KeyBindings,
     physics::{self, ApplyPhysics, Collider, Grounded, Velocity},
     pointed_block::{BlockPointer, Pointing},
 };
@@ -12,51 +10,38 @@ use bevy::{
     input::{common_conditions::input_just_pressed, mouse::MouseMotion},
     prelude::*,
 };
+use std::f32::consts::PI;
 
 pub struct PlayerControlPlugin;
 
-#[derive(SystemSet, Clone, Copy, PartialEq, Eq, Debug, Hash)]
-struct PlayerControl;
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PlayerControlSystemSet;
 
 impl Plugin for PlayerControlPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, PlayerControl.run_if(is_player_control_on))
-            .add_systems(
-                Update,
+        app.add_systems(
+            Update,
+            (
                 (
-                    (
-                        control_player_rotation,
-                        control_player_physics,
-                        control_player_flying,
-                    )
-                        .before(ApplyPhysics),
-                    player_acts,
-                    toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
-                    change_placing_block,
-                    player_activate_console,
-                    consistency_check.run_if(input_just_pressed(KeyCode::KeyY)),
+                    control_player_rotation,
+                    control_player_physics,
+                    control_player_flying,
                 )
-                    .in_set(PlayerControl),
-            );
+                    .before(ApplyPhysics),
+                player_acts,
+                toggle_flying.run_if(input_just_pressed(KeyCode::KeyV)),
+                change_placing_block,
+            )
+                .in_set(PlayerControlSystemSet),
+        )
+        .add_observer(on_set_placing_block)
+        .add_observer(on_toggle_flying);
     }
 }
 
-fn is_player_control_on(input_mode: Res<InputMode>) -> bool {
-    *input_mode == InputMode::PlayerControl
-}
+#[derive(Component)]
+pub struct PlacingBlock(pub Block);
 
-fn player_activate_console(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut console: ResMut<ConsoleState>,
-    mut commands: Commands,
-) {
-    if keys.just_pressed(KeyCode::KeyT) {
-        console.active = true;
-        console.focus = true;
-        console.input.clear();
-        commands.trigger(SetInputMode(InputMode::UiInteraction));
-    }
-}
 fn player_acts(
     mouse: Res<ButtonInput<MouseButton>>,
     player: Single<(&BlockPointer, &PlacingBlock), With<Player>>,
@@ -97,13 +82,27 @@ fn change_placing_block(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands)
     }
 }
 
-fn toggle_flying(player: Single<(Entity, Has<Velocity>), With<Player>>, mut commands: Commands) {
-    let (entity, has_physics) = player.into_inner();
-    if has_physics {
-        commands.entity(entity).remove::<Velocity>();
-    } else {
-        commands.entity(entity).insert(Velocity::default());
+#[derive(Event, Debug, Clone, Deref, Copy)]
+pub struct ToggleFlying(pub Option<bool>);
+
+fn on_toggle_flying(
+    flying: On<ToggleFlying>,
+    player: Single<(Entity, Has<Velocity>), With<Player>>,
+    mut commands: Commands,
+) {
+    let (entity, has_physics) = *player;
+    match flying.unwrap_or(has_physics) {
+        false => {
+            commands.entity(entity).insert(Velocity::default());
+        }
+        true => {
+            commands.entity(entity).remove::<Velocity>();
+        }
     }
+}
+
+fn toggle_flying(mut commands: Commands) {
+    commands.trigger(ToggleFlying(None));
 }
 
 fn control_player_rotation(
@@ -129,28 +128,29 @@ fn control_player_physics(
     keys: Res<ButtonInput<KeyCode>>,
     player: Single<(&Transform, &mut Velocity, Has<Grounded>), With<Player>>,
     time: Res<Time>,
+    bindings: Res<KeyBindings>,
 ) {
     let (transform, mut velocity, grounded) = player.into_inner();
-    if keys.pressed(KeyCode::Space) && grounded {
+    if keys.pressed(bindings.jump) && grounded {
         velocity.linear.y = 12.0;
     }
 
     let mut dir = Vec3::ZERO;
-    if keys.pressed(KeyCode::KeyE) {
+    if keys.pressed(bindings.move_forward) {
         dir -= Vec3::Z;
     }
-    if keys.pressed(KeyCode::KeyD) {
+    if keys.pressed(bindings.move_backward) {
         dir += Vec3::Z;
     }
-    if keys.pressed(KeyCode::KeyF) {
+    if keys.pressed(bindings.move_right) {
         dir += Vec3::X;
     }
-    if keys.pressed(KeyCode::KeyS) {
+    if keys.pressed(bindings.move_left) {
         dir -= Vec3::X;
     }
     let dir = dir.normalize_or_zero();
 
-    let force = match (grounded, keys.pressed(KeyCode::KeyA)) {
+    let force = match (grounded, keys.pressed(bindings.sprint)) {
         (true, true) => 110.0,
         (true, false) => 90.0,
         (false, _) => 40.0,
@@ -165,32 +165,33 @@ fn control_player_flying(
     keys: Res<ButtonInput<KeyCode>>,
     mut player: Single<&mut Transform, (With<Player>, Without<Velocity>)>,
     time: Res<Time>,
+    bindings: Res<KeyBindings>,
 ) {
     const PLAYER_SPEED: f32 = 8.0;
     const PLAYER_SPEED_BOOST: f32 = 24.0;
 
     let mut dir = Vec3::ZERO;
-    if keys.pressed(KeyCode::Space) {
+    if keys.pressed(bindings.jump) {
         dir += Vec3::Y;
     }
-    if keys.pressed(KeyCode::KeyZ) {
+    if keys.pressed(bindings.croutch) {
         dir -= Vec3::Y;
     }
-    if keys.pressed(KeyCode::KeyE) {
+    if keys.pressed(bindings.move_forward) {
         dir -= Vec3::Z;
     }
-    if keys.pressed(KeyCode::KeyD) {
+    if keys.pressed(bindings.move_backward) {
         dir += Vec3::Z;
     }
-    if keys.pressed(KeyCode::KeyF) {
+    if keys.pressed(bindings.move_right) {
         dir += Vec3::X;
     }
-    if keys.pressed(KeyCode::KeyS) {
+    if keys.pressed(bindings.move_left) {
         dir -= Vec3::X;
     }
     let dir = dir.normalize_or_zero();
 
-    let speed = match keys.pressed(KeyCode::KeyA) {
+    let speed = match keys.pressed(bindings.sprint) {
         true => PLAYER_SPEED_BOOST,
         false => PLAYER_SPEED,
     };
@@ -200,9 +201,12 @@ fn control_player_flying(
     player.translation += plane_rotation * dir * time.delta_secs() * speed;
 }
 
-fn consistency_check(blocks: Query<&ChunkBlocks>) {
-    for blocks in blocks {
-        blocks.assert_consistency();
-    }
-    info!("consistency check successful");
+#[derive(Event, Debug)]
+pub struct SetPlacingBlock(pub Block);
+
+fn on_set_placing_block(
+    change: On<SetPlacingBlock>,
+    mut player: Single<&mut PlacingBlock, With<Player>>,
+) {
+    player.0 = change.0;
 }

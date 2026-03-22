@@ -1,36 +1,24 @@
+use std::ops::RangeInclusive;
+
 use crate::block::{Block, Oclusion};
 use crate::chunk_blocks::ChunkBlocks;
 use crate::chunk_render::NeedsRemeshing;
 use crate::spacial::{Side, Sides, SidesExt};
+use crate::terrain::TerrainGenerationParameters;
 use crate::{CHUNK_WIDTH, octahedron};
 use bevy::ecs::query::QueryEntityError;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::{ecs::entity::Entity, platform::collections::HashMap};
-use std::ops::RangeInclusive;
 
 #[derive(Resource)]
 pub struct ChunksIndex {
     index: HashMap<IVec3, Entity>,
 }
 
-#[derive(Component, Clone, Copy, Debug)]
-pub struct Chunk {
-    pub chunk: IVec3,
-}
-
-#[derive(Component, Clone, Copy)]
-pub struct Loader {
-    pub radius: f32,
-    pub buffer: f32,
-}
-
-#[derive(Event, Debug)]
-pub enum Modify {
-    Place { global: IVec3, block: Block },
-}
-
 pub fn chunks_setup(mut commands: Commands) {
+    let terrain = TerrainGenerationParameters::new();
     commands.insert_resource(ChunksIndex::new());
+    commands.insert_resource(terrain);
     commands.add_observer(observe_chunk_modify);
 }
 
@@ -68,6 +56,59 @@ fn observe_chunk_modify(
     }
 }
 
+/// Chunk position on the chunk grid
+///
+/// The unit is the chunk size, not a block
+#[derive(Component, Clone, Copy, Debug)]
+pub struct Chunk {
+    pub chunk: IVec3,
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct Loader {
+    pub radius: f32,
+    pub buffer: f32,
+}
+
+#[derive(Event, Debug)]
+pub enum Modify {
+    Place { global: IVec3, block: Block },
+}
+
+impl Loader {
+    pub const ZONE_MESH: u32 = 0;
+    pub const ZONE_STRUCT: u32 = 1;
+    pub const ZONE_BLOCKS: u32 = 3;
+    const INTER_STAGES: i32 = 3;
+
+    pub fn new(radius: f32, buffer: f32) -> Self {
+        assert!(buffer >= 1.0);
+        Self { radius, buffer }
+    }
+    pub fn index_range(self, at: f32) -> RangeInclusive<i32> {
+        let min = ((at - self.radius) / CHUNK_WIDTH as f32).floor() as i32 - Self::INTER_STAGES;
+        let max = ((at + self.radius) / CHUNK_WIDTH as f32).ceil() as i32 + Self::INTER_STAGES;
+        min..=max
+    }
+    // pub fn inside_zone(self, loader: Vec3, chunk: Chunk, zone: u32) -> bool {
+    //     Self::distance(loader, chunk.center(), zone) <= self.radius
+    // }
+    pub fn inside_zone(self, loader: Vec3, chunk: Chunk, zone: u32) -> Option<u32> {
+        let distance = Self::distance(loader, chunk.center(), zone);
+        if distance <= self.radius {
+            Some(distance as u32)
+        } else {
+            None
+        }
+    }
+    pub fn outside_zone(self, loader: Vec3, chunk: Chunk, zone: u32) -> bool {
+        Self::distance(loader, chunk.center(), zone) > self.radius + self.buffer
+    }
+    fn distance(lhs: Vec3, rhs: Vec3, zone: u32) -> f32 {
+        octahedron::distance(lhs, zone as f32 * CHUNK_WIDTH as f32, rhs)
+    }
+}
+
 impl Chunk {
     pub fn center(self) -> Vec3 {
         (self.chunk.as_vec3() + 0.5) * CHUNK_WIDTH as f32
@@ -91,6 +132,38 @@ impl std::ops::Add<IVec3> for Chunk {
             chunk: self.chunk + rhs,
         }
     }
+}
+
+pub fn chunk_neighbours_hexahedron(chunk: Chunk) -> [Chunk; 26] {
+    [
+        ivec3(-1, -1, -1),
+        ivec3(-1, -1, 0),
+        ivec3(-1, -1, 1),
+        ivec3(-1, 0, -1),
+        ivec3(-1, 0, 0),
+        ivec3(-1, 0, 1),
+        ivec3(-1, 1, -1),
+        ivec3(-1, 1, 0),
+        ivec3(-1, 1, 1),
+        ivec3(0, -1, -1),
+        ivec3(0, -1, 0),
+        ivec3(0, -1, 1),
+        ivec3(0, 0, -1),
+        ivec3(0, 0, 1),
+        ivec3(0, 1, -1),
+        ivec3(0, 1, 0),
+        ivec3(0, 1, 1),
+        ivec3(1, -1, -1),
+        ivec3(1, -1, 0),
+        ivec3(1, -1, 1),
+        ivec3(1, 0, -1),
+        ivec3(1, 0, 0),
+        ivec3(1, 0, 1),
+        ivec3(1, 1, -1),
+        ivec3(1, 1, 0),
+        ivec3(1, 1, 1),
+    ]
+    .map(|shift| Chunk::from(chunk.chunk + shift))
 }
 
 type Queried<'a, T> = Result<&'a T, QueryEntityError>;
@@ -133,6 +206,25 @@ impl ChunksIndex {
         blocks.set(local, block);
     }
 
+    pub fn set_block_if_stronger<'a>(
+        &self,
+        blocks: impl FnOnce(Entity) -> QueriedMut<'a, ChunkBlocks>,
+        global: IVec3,
+        block: Block,
+    ) {
+        let Some((chunk, local)) = self.global_to_local(global) else {
+            warn!("attempt to set block in non-indexed chunk");
+            return;
+        };
+        let Some(mut blocks) = blocks(chunk).ok() else {
+            warn!("attempt to set block in non-loaded chunk");
+            return;
+        };
+        if blocks.get(local) < block {
+            blocks.set(local, block);
+        }
+    }
+
     pub fn get(&self, chunk: Chunk) -> Option<Entity> {
         self.index.get(&chunk.chunk).copied()
     }
@@ -160,28 +252,6 @@ pub fn assert_is_local(local: IVec3) {
     assert!(local.z < CHUNK_WIDTH);
 }
 
-// pub fn chunk_state_show(
-//     chunks: Query<(&Chunk, Has<ChunkBlocks>, Has<Mesh3d>)>,
-//     mut gizmos: Gizmos,
-// ) {
-//     for (&chunk, has_blocks, has_mesh) in &chunks {
-//         let color = match (has_blocks, has_mesh) {
-//             (false, false) => Color::srgb(1.0, 0.0, 0.0),
-//             (true, false) => Color::srgb(1.0, 1.0, 0.0),
-//             (true, true) => Color::srgb(0.0, 0.0, 1.0),
-//             (false, true) => panic!(),
-//         };
-//         gizmos.cuboid(
-//             Transform {
-//                 translation: chunk.center(),
-//                 rotation: default(),
-//                 scale: Vec3::splat(CHUNK_WIDTH as f32 - 1.0),
-//             },
-//             color,
-//         );
-//     }
-// }
-
 pub fn chunk_indexer(
     loaders: Query<(&Transform, &Loader)>,
     mut commands: Commands,
@@ -208,49 +278,13 @@ pub fn chunk_indexer(
     }
 }
 
-impl Loader {
-    pub const ZONE_MESH: u32 = 0;
-    pub const ZONE_BLOCKS: u32 = 1;
-
-    pub fn new(radius: f32, buffer: f32) -> Self {
-        assert!(buffer >= 1.0);
-        Self { radius, buffer }
-    }
-    pub fn index_range(self, at: f32) -> RangeInclusive<i32> {
-        const INTER_STAGES: i32 = 1;
-        let min = ((at - self.radius) / CHUNK_WIDTH as f32).floor() as i32 - INTER_STAGES;
-        let max = ((at + self.radius) / CHUNK_WIDTH as f32).ceil() as i32 + INTER_STAGES;
-        min..=max
-    }
-    pub fn inside_zone(self, loader: Vec3, chunk: Chunk, zone: u32) -> bool {
-        Self::distance(loader, chunk.center(), zone) <= self.radius
-    }
-    pub fn inside_zone2(self, loader: Vec3, chunk: Chunk, zone: u32) -> Option<u32> {
-        let distance = Self::distance(loader, chunk.center(), zone);
-        if distance <= self.radius {
-            Some(distance as u32)
-        } else {
-            None
-        }
-    }
-    pub fn outside_zone(self, loader: Vec3, chunk: Chunk, zone: u32) -> bool {
-        Self::distance(loader, chunk.center(), zone) > self.radius + self.buffer
-    }
-    fn distance(lhs: Vec3, rhs: Vec3, zone: u32) -> f32 {
-        octahedron::distance(lhs, zone as f32 * CHUNK_WIDTH as f32, rhs)
-    }
-}
-
-#[test]
-fn test_global_local_transitions() {
-    for x in -100..100 {
-        for y in -100..100 {
-            for z in -100..100 {
-                let global = IVec3 { x, y, z };
-                let (chunk, local) = global_to_local(global);
-                let global_rebuilt = local_to_global(chunk, local);
-                assert_eq!(global, global_rebuilt);
-            }
-        }
+pub fn reset_chunks(
+    mut commands: Commands,
+    mut index: ResMut<ChunksIndex>,
+    chunks: Query<Entity, With<ChunkBlocks>>,
+) {
+    *index = ChunksIndex::new();
+    for chunk in chunks {
+        commands.entity(chunk).despawn();
     }
 }

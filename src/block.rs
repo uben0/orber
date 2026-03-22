@@ -1,14 +1,14 @@
 use crate::spacial::{Sides, Symetry2};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd)]
 pub enum Block {
     Air,
-    Stone,
-    Grass,
-    Sand,
     Water,
-    Log,
     Leaves,
+    Log,
+    Sand,
+    Grass,
+    Stone,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

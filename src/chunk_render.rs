@@ -1,13 +1,18 @@
-use crate::CHUNK_WIDTH;
-use crate::block::{Block, Oclusion};
-use crate::chunk_blocks::ChunkBlocks;
-use crate::chunks::{Chunk, ChunksIndex, Loader, local_to_global};
-use crate::material::terrain::{ATTRIBUTE_TEXTURE_INDEX, AtlasMaterial};
-use crate::material::water::WaterMaterial;
-use crate::spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt};
-use bevy::camera::primitives::MeshAabb;
-use bevy::mesh::{Indices, Mesh, PrimitiveTopology::TriangleList};
-use bevy::prelude::*;
+use std::ops::Not;
+
+use crate::{
+    CHUNK_WIDTH,
+    block::{Block, Oclusion},
+    chunk_blocks::{ChunkBlocks, GenStage},
+    chunks::{Chunk, ChunksIndex, Loader, local_to_global},
+    material::{atlas::AtlasMaterial, water::WaterMaterial},
+    spacial::{QUAD_INDICES, QUAD_UV, Side, Sides, SidesExt},
+};
+use bevy::{
+    camera::primitives::MeshAabb,
+    mesh::{Indices, PrimitiveTopology},
+    prelude::*,
+};
 
 pub struct ChunkRenderPlugin;
 impl Plugin for ChunkRenderPlugin {
@@ -38,8 +43,12 @@ pub struct MeshAssets {
 
 type Candidate = (
     With<ChunkBlocks>,
+    Without<GenStage>,
     Or<(Without<HasMesh>, With<NeedsRemeshing>)>,
 );
+
+const TEXTURE_BLOCKS: &[u8] = include_bytes!("blocks.png");
+const TEXTURE_WATER: &[u8] = include_bytes!("water.png");
 
 fn chunks_mesh_setup(
     mut commands: Commands,
@@ -47,17 +56,9 @@ fn chunks_mesh_setup(
     mut atlas_material: ResMut<Assets<AtlasMaterial>>,
     mut water_materials: ResMut<Assets<WaterMaterial>>,
 ) {
-    // std::env::var( /)
     commands.insert_resource(MeshAssets {
-        atlas_material: atlas_material.add(AtlasMaterial::new(
-            "assets/textures/blocks.png",
-            16,
-            images.as_mut(),
-        )),
-        water_material: water_materials.add(WaterMaterial::new(
-            "assets/textures/water.png",
-            images.as_mut(),
-        )),
+        atlas_material: atlas_material.add(AtlasMaterial::new(TEXTURE_BLOCKS, 16, images.as_mut())),
+        water_material: water_materials.add(WaterMaterial::new(TEXTURE_WATER, images.as_mut())),
     });
 }
 
@@ -72,7 +73,9 @@ fn chunk_meshing(
 ) {
     for (entity, &chunk, has_mesh) in &chunks {
         if loaders.iter().any(|(transform, &loader)| {
-            loader.inside_zone(transform.translation, chunk, Loader::ZONE_MESH)
+            loader
+                .inside_zone(transform.translation, chunk, Loader::ZONE_MESH)
+                .is_some()
         }) {
             let has_blocks = |n| index.get(n).map(|e| blocks.contains(e)).unwrap_or(false);
             if chunk.neighbours().list().all(has_blocks) {
@@ -98,55 +101,41 @@ fn chunk_meshing(
                 };
 
                 let (regular, water) = chunk_build_mesh(&index, blocks, chunk);
-                let regular_aabb = regular.compute_aabb();
-                let water_aabb = water.compute_aabb();
 
                 commands.entity(entity).remove::<NeedsRemeshing>();
-                commands.entity(has_mesh.regular).insert((
-                    Mesh3d(meshes.add(regular)),
-                    MeshMaterial3d(assets.atlas_material.clone()),
-                ));
-                commands.entity(has_mesh.water).insert((
-                    Mesh3d(meshes.add(water)),
-                    MeshMaterial3d(assets.water_material.clone()),
-                ));
-
-                if let Some(aabb) = regular_aabb {
-                    commands.entity(has_mesh.regular).insert(aabb);
+                if let Some(regular) = regular {
+                    let regular_aabb = regular
+                        .compute_aabb()
+                        .expect("non empty mesh should have a bounding box");
+                    commands
+                        .entity(has_mesh.regular)
+                        .insert((
+                            Mesh3d(meshes.add(regular)),
+                            MeshMaterial3d(assets.atlas_material.clone()),
+                        ))
+                        .insert(regular_aabb);
                 }
-                if let Some(aabb) = water_aabb {
-                    commands.entity(has_mesh.water).insert(aabb);
+                if let Some(water) = water {
+                    let water_aabb = water
+                        .compute_aabb()
+                        .expect("non empty mesh should have a bounding box");
+                    commands
+                        .entity(has_mesh.water)
+                        .insert((
+                            Mesh3d(meshes.add(water)),
+                            MeshMaterial3d(assets.water_material.clone()),
+                        ))
+                        .insert(water_aabb);
                 }
             }
         }
     }
 }
-
-fn chunk_demeshing(
-    chunks: Query<(Entity, &Chunk, Option<&HasMesh>), Or<(With<HasMesh>, With<NeedsRemeshing>)>>,
-    loaders: Query<(&Transform, &Loader)>,
-    mut commands: Commands,
-) {
-    for (entity, &chunk, has_mesh) in chunks {
-        if loaders.iter().all(|(transform, &loader)| {
-            loader.outside_zone(transform.translation, chunk, Loader::ZONE_MESH)
-        }) {
-            commands
-                .entity(entity)
-                .remove::<(NeedsRemeshing, HasMesh)>();
-            if let Some(has_mesh) = has_mesh {
-                commands.entity(has_mesh.regular).despawn();
-                commands.entity(has_mesh.water).despawn();
-            }
-        }
-    }
-}
-
 pub fn chunk_build_mesh(
     index: &ChunksIndex,
     blocks: Query<&ChunkBlocks>,
     chunk: Chunk,
-) -> (Mesh, Mesh) {
+) -> (Option<Mesh>, Option<Mesh>) {
     let mut regular_positions: Vec<[f32; 3]> = Vec::new();
     let mut regular_normals: Vec<[f32; 3]> = Vec::new();
     let mut regular_texture_uvs = Vec::new();
@@ -225,18 +214,28 @@ pub fn chunk_build_mesh(
         }
     }
     (
-        Mesh::new(TriangleList, default())
-            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, regular_positions)
-            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, regular_normals)
-            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, regular_texture_uvs)
-            .with_inserted_attribute(ATTRIBUTE_TEXTURE_INDEX, regular_texture_indices)
-            .with_inserted_indices(Indices::U32(regular_indices)),
-        Mesh::new(TriangleList, default())
-            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, water_positions)
-            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, water_normals)
-            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, water_texture_uvs)
-            .with_inserted_attribute(ATTRIBUTE_TEXTURE_INDEX, water_texture_indices)
-            .with_inserted_indices(Indices::U32(water_indices)),
+        regular_indices.is_empty().not().then(|| {
+            Mesh::new(PrimitiveTopology::TriangleList, default())
+                .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, regular_positions)
+                .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, regular_normals)
+                .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, regular_texture_uvs)
+                .with_inserted_attribute(
+                    crate::material::atlas::ATTRIBUTE_TEXTURE_INDEX,
+                    regular_texture_indices,
+                )
+                .with_inserted_indices(Indices::U32(regular_indices))
+        }),
+        water_indices.is_empty().not().then(|| {
+            Mesh::new(PrimitiveTopology::TriangleList, default())
+                .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, water_positions)
+                .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, water_normals)
+                .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, water_texture_uvs)
+                .with_inserted_attribute(
+                    crate::material::water::ATTRIBUTE_TEXTURE_INDEX,
+                    water_texture_indices,
+                )
+                .with_inserted_indices(Indices::U32(water_indices))
+        }),
     )
 }
 
@@ -282,6 +281,25 @@ fn make_cube_mesh2(position: Vec3, block: Block, sides: Sides<Block>, mut write:
                 texture_uv,
                 texture_index,
             });
+        }
+    }
+}
+fn chunk_demeshing(
+    chunks: Query<(Entity, &Chunk, Option<&HasMesh>), Or<(With<HasMesh>, With<NeedsRemeshing>)>>,
+    loaders: Query<(&Transform, &Loader)>,
+    mut commands: Commands,
+) {
+    for (entity, &chunk, has_mesh) in chunks {
+        if loaders.iter().all(|(transform, &loader)| {
+            loader.outside_zone(transform.translation, chunk, Loader::ZONE_MESH)
+        }) {
+            commands
+                .entity(entity)
+                .remove::<(NeedsRemeshing, HasMesh)>();
+            if let Some(has_mesh) = has_mesh {
+                commands.entity(has_mesh.regular).despawn();
+                commands.entity(has_mesh.water).despawn();
+            }
         }
     }
 }
