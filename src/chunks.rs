@@ -77,9 +77,9 @@ pub enum Modify {
 
 impl Loader {
     pub const ZONE_MESH: u32 = 0;
-    pub const ZONE_STRUCT: u32 = 1;
-    pub const ZONE_BLOCKS: u32 = 3;
-    const INTER_STAGES: i32 = 3;
+    pub const ZONE_STRUCT: u32 = 2;
+    pub const ZONE_BLOCKS: u32 = 4;
+    const INTER_STAGES: i32 = 4;
 
     pub fn new(radius: f32, buffer: f32) -> Self {
         assert!(buffer >= 1.0);
@@ -278,13 +278,13 @@ pub fn chunk_indexer(
     }
 }
 
-pub fn reset_chunks(
-    mut commands: Commands,
-    mut index: ResMut<ChunksIndex>,
-    chunks: Query<Entity, With<ChunkBlocks>>,
-) {
-    *index = ChunksIndex::new();
-    for chunk in chunks {
-        commands.entity(chunk).despawn();
-    }
-}
+// pub fn reset_chunks(
+//     mut commands: Commands,
+//     mut index: ResMut<ChunksIndex>,
+//     chunks: Query<Entity, With<ChunkBlocks>>,
+// ) {
+//     *index = ChunksIndex::new();
+//     for chunk in chunks {
+//         commands.entity(chunk).despawn();
+//     }
+// }

@@ -150,6 +150,7 @@ pub fn chunk_build_mesh(
     // let entity = index.get(chunk).unwrap();
     // let chunk_blocks = blocks.get(entity).unwrap();
 
+    // TODO: try only iterating on items
     for x in 0..CHUNK_WIDTH {
         for y in 0..CHUNK_WIDTH {
             for z in 0..CHUNK_WIDTH {

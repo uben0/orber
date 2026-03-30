@@ -43,6 +43,7 @@
             pkgs.libudev-zero
             pkgs.vulkan-loader
             pkgs.libxkbcommon
+            pkgs.binaryen
             (pkgs.rust-bin.selectLatestNightlyWith ( toolchain:
               toolchain.default.override {
                 extensions = [ "rust-src" "rust-analyzer" ];

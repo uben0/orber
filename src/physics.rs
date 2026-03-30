@@ -15,7 +15,7 @@ impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (apply_gravity, damp_velocity, apply_velocity)
+            (apply_gravity, apply_velocity, damp_velocity)
                 .chain()
                 .in_set(ApplyPhysics),
         );
@@ -81,7 +81,7 @@ fn apply_velocity(
     time: Res<Time>,
     mut commands: Commands,
 ) {
-    for (entity, mut tr, cl, mut vl) in collider {
+    'collider: for (entity, mut tr, cl, mut vl) in collider {
         // which side of the collider is advancing
         let corner_select = Vec3 {
             x: if vl.linear.x < 0.0 { 0.0 } else { cl.size.x },
@@ -112,11 +112,10 @@ fn apply_velocity(
                         let selected = IVec3::compose(axis, Sign::Pos, step.voxel[axis], [u, v]);
 
                         // if a block is present, a collision occur
-                        if index
-                            .get_block(|e| blocks.get(e), selected)
-                            .unwrap_or(Block::Air)
-                            .collides()
-                        {
+                        let Some(block) = index.get_block(|e| blocks.get(e), selected) else {
+                            break 'collider;
+                        };
+                        if block.collides() {
                             // we correct the vector component to stop at the collision
                             shift[axis] *= step.time / length;
                             // we stop slightly before the collision

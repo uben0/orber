@@ -12,6 +12,13 @@ use bevy::{
 };
 use std::f32::consts::PI;
 
+#[derive(EntityEvent)]
+pub struct Teleport {
+    #[event_target]
+    pub target: Entity,
+    pub position: Vec3,
+}
+
 pub struct PlayerControlPlugin;
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -35,12 +42,19 @@ impl Plugin for PlayerControlPlugin {
                 .in_set(PlayerControlSystemSet),
         )
         .add_observer(on_set_placing_block)
-        .add_observer(on_toggle_flying);
+        .add_observer(on_toggle_flying)
+        .add_observer(on_teleport);
     }
 }
 
 #[derive(Component)]
 pub struct PlacingBlock(pub Block);
+
+fn on_teleport(teleport: On<Teleport>, mut tr: Query<&mut Transform>) {
+    if let Ok(mut tr) = tr.get_mut(teleport.target) {
+        tr.translation = teleport.position;
+    }
+}
 
 fn player_acts(
     mouse: Res<ButtonInput<MouseButton>>,

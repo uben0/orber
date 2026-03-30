@@ -10,6 +10,7 @@ bevy_framepace = "0.21.0"
 lalrpop-util = { version = "0.23.0", features = ["lexer"] }
 noisy_bevy = "0.13.0"
 rand = { version = "0.10.0", default-features = false }
+ron = "0.12.0"
 
 [dependencies.bevy]
 version = "0.18.0"
@@ -33,8 +34,6 @@ features = [
   "bevy_ui",
   "bevy_ui_render",
   "bevy_window",
-  "debug",
-  "experimental_bevy_feathers",
   "multi_threaded",
   "png",
   "tonemapping_luts",
@@ -42,7 +41,6 @@ features = [
   "web",
   "webgpu",
   "zstd_rust",
-  # "x11",
 ]
 
 [profile.dev]
@@ -50,6 +48,10 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+[profile.release]
+# lto = true
+# codegen-units = 1
 
 [build-dependencies]
 lalrpop = "0.23.0"

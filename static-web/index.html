@@ -6,10 +6,61 @@
 </head>
 
 <body>
+  <div id="loading-screen">
+    <div id="loading-box">
+      <p id="loading-label">Loading...</p>
+      <div id="progress-track">
+        <div id="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
   <canvas id="bevy-render" />
+
   <script type="module">
     import init from './mygame.js';
-    init();
+
+    const progressBar = document.getElementById('progress-bar');
+    const loadingLabel = document.getElementById('loading-label');
+    const loadingScreen = document.getElementById('loading-screen');
+
+    async function loadWithProgress(url) {
+      const response = await fetch(url);
+      const contentLength = response.headers.get('Content-Length');
+      const total = contentLength ? parseInt(contentLength, 10) : null;
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+
+        if (total) {
+          const pct = Math.round((received / total) * 100);
+          progressBar.style.width = pct + '%';
+          loadingLabel.textContent = `Loading... ${pct}%`;
+        } else {
+          progressBar.style.width = '60%';
+          progressBar.style.opacity = '0.6';
+        }
+      }
+
+      const allChunks = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) {
+        allChunks.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return allChunks.buffer;
+    }
+
+    const wasmBuffer = await loadWithProgress('./mygame_bg.wasm');
+    await init(wasmBuffer);
+
+    loadingScreen.style.display = 'none';
   </script>
 </body>
 

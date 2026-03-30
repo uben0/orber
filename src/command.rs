@@ -1,9 +1,9 @@
 use crate::{
     SetRenderDistance,
     block::Block,
-    player_control::{SetPlacingBlock, ToggleFlying},
+    player_control::{SetPlacingBlock, Teleport, ToggleFlying},
 };
-use bevy::ecs::system::Commands;
+use bevy::prelude::*;
 
 lalrpop_util::lalrpop_mod!(command);
 
@@ -11,25 +11,28 @@ pub use command::UserCommandParser;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UserCommand {
-    Test,
     Place(Block),
     RenderDistance(f32),
     Fly(bool),
+    Teleport(Vec3),
 }
 
 impl UserCommand {
-    pub fn dispatch(self, commands: &mut Commands) {
+    pub fn dispatch(self, player: Entity, commands: &mut Commands) {
         match self {
-            UserCommand::Test => {
-                println!("test");
+            Self::Teleport(position) => {
+                commands
+                    .entity(player)
+                    .trigger(|target| Teleport { target, position });
+                println!("teleport to {position}");
             }
-            UserCommand::Place(block) => {
+            Self::Place(block) => {
                 commands.trigger(SetPlacingBlock(block));
             }
-            UserCommand::RenderDistance(distance) => {
+            Self::RenderDistance(distance) => {
                 commands.trigger(SetRenderDistance(distance));
             }
-            UserCommand::Fly(fly) => {
+            Self::Fly(fly) => {
                 commands.trigger(ToggleFlying(Some(fly)));
             }
         }

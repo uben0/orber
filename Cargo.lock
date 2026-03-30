@@ -605,36 +605,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_feathers"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cb29be8f8443c5cc44e1c4710bbe02877e73703c60228ca043f20529a5496c6"
-dependencies = [
- "accesskit",
- "bevy_a11y",
- "bevy_app",
- "bevy_asset",
- "bevy_camera",
- "bevy_color",
- "bevy_derive",
- "bevy_ecs",
- "bevy_input_focus",
- "bevy_log",
- "bevy_math",
- "bevy_picking",
- "bevy_platform",
- "bevy_reflect",
- "bevy_render",
- "bevy_shader",
- "bevy_text",
- "bevy_ui",
- "bevy_ui_render",
- "bevy_ui_widgets",
- "bevy_window",
- "smol_str",
-]
-
-[[package]]
 name = "bevy_fix_cursor_unlock_web"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -802,7 +772,6 @@ dependencies = [
  "bevy_dev_tools",
  "bevy_diagnostic",
  "bevy_ecs",
- "bevy_feathers",
  "bevy_gizmos",
  "bevy_gizmos_render",
  "bevy_image",
@@ -828,7 +797,6 @@ dependencies = [
  "bevy_transform",
  "bevy_ui",
  "bevy_ui_render",
- "bevy_ui_widgets",
  "bevy_utils",
  "bevy_window",
  "bevy_winit",
@@ -1321,7 +1289,6 @@ dependencies = [
  "bevy_input",
  "bevy_input_focus",
  "bevy_math",
- "bevy_picking",
  "bevy_platform",
  "bevy_reflect",
  "bevy_sprite",
@@ -1334,7 +1301,6 @@ dependencies = [
  "taffy",
  "thiserror 2.0.18",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -1366,26 +1332,6 @@ dependencies = [
  "bytemuck",
  "derive_more",
  "tracing",
-]
-
-[[package]]
-name = "bevy_ui_widgets"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6a63cb818b0de41bdb14990e0ce1aaaa347f871750ab280f80c427e83d72712"
-dependencies = [
- "accesskit",
- "bevy_a11y",
- "bevy_app",
- "bevy_camera",
- "bevy_ecs",
- "bevy_input",
- "bevy_input_focus",
- "bevy_log",
- "bevy_math",
- "bevy_picking",
- "bevy_reflect",
- "bevy_ui",
 ]
 
 [[package]]
@@ -2783,6 +2729,7 @@ dependencies = [
  "lalrpop-util",
  "noisy_bevy",
  "rand 0.10.0",
+ "ron",
 ]
 
 [[package]]
